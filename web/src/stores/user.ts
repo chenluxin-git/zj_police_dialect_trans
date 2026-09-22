@@ -39,7 +39,7 @@ export const useUserStore = defineStore("user", {
       this.token = ""
       this.user = null
       localStorage.removeItem(TOKEN_KEY)
-      window.location.href = "/login"
+      window.location.href = import.meta.env.BASE_URL + "login"
     },
   },
 })

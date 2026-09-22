@@ -21,7 +21,8 @@ declare module "vue-router" {
 }
 
 const router = createRouter({
-  history: createWebHistory(),
+  // 子路径部署（如宝塔 /record/）：base 用构建期 BASE_URL，dev 下为 "/"，行为不变
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: "/login", name: "login", component: () => import("@/views/LoginView.vue"), meta: { public: true, title: "登录" } },
     { path: "/register", name: "register", component: () => import("@/views/RegisterView.vue"), meta: { public: true, title: "注册" } },

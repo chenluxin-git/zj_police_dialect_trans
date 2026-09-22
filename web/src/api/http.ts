@@ -40,8 +40,9 @@ http.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY)
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login"
+      const loginPath = import.meta.env.BASE_URL + "login"
+      if (window.location.pathname !== loginPath) {
+        window.location.href = loginPath
       }
     }
     const data = err.response?.data

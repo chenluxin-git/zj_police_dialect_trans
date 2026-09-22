@@ -44,7 +44,7 @@ def health() -> dict:
     return {"status": "ok"}
 
 @app.on_event("startup")
-def on_startup() -> None:
+async def on_startup() -> None:
     _setup_logging()
     # T4: 先建存储目录再建表（修 fresh-checkout 无 data/ 时 sqlite 建库失败）
     import os
@@ -57,4 +57,7 @@ def on_startup() -> None:
     from .utils.seed import run_seed
     with SessionLocal() as db:
         run_seed(db)
-    # T9 接入: asyncio.create_task(qc_loop())
+    # T9 接入: 后台质检循环（60s 一轮；asr_api_url 空时直通，见 services/qc.py）
+    import asyncio
+    from .services.qc import qc_loop
+    asyncio.create_task(qc_loop())

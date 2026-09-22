@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * 录音组件（dome/record.html 演进）：MediaRecorder 录音 + 开始/停止切换钮 + 计时 + 实时波形
- * （2026-09-22 用户要求：去掉中央圆形脉冲钮，改为「开始录音」文字按钮）
+ * 录音组件（dome/record.html 演进）：MediaRecorder 录音 + 开始/停止切换钮 + 计时
+ * （2026-09-22 用户要求：去掉中央圆形脉冲钮改为文字按钮；去掉波纹图案）
  * - props {disabled}：无文本分配时禁用
  * - emits start（开始录音）/ stop(blob, seconds)（停止并产出 Blob）
  * - mimeType 择优 webm;codecs=opus → webm → mp4；getUserMedia 失败给出明确指引
@@ -117,9 +117,6 @@ onUnmounted(() => {
       开始录音
     </button>
     <p class="zp-timer zp-mt-16">{{ format(seconds) }}</p>
-    <div class="zp-wave zp-mt-8" :class="{ 'is-live': recording }" aria-hidden="true">
-      <span v-for="n in 40" :key="n"></span>
-    </div>
     <p class="zp-text-3 zp-mt-16">
       {{ recording ? "正在录音…点击上方按钮停止" : "建议录音时长 5～20 秒" }}
     </p>

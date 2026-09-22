@@ -28,6 +28,7 @@ from .api.messages import router as messages_router  # P-social(T13)：站内消
 from .api.annotations import router as annotations_router
 from .api.audio_files import router as audio_files_router
 from .api.admin.export import router as admin_export_router  # P-export(T23)
+from .api.admin import admin_recordings_router, admin_annotations_router  # P-admin-data(T18)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(base_router, prefix="/api")
@@ -38,6 +39,8 @@ app.include_router(messages_router)
 app.include_router(annotations_router, prefix="/api")
 app.include_router(audio_files_router, prefix="/api")
 app.include_router(admin_export_router, prefix="/api/admin")
+app.include_router(admin_recordings_router, prefix="/api/admin")  # P-admin-data(T18)
+app.include_router(admin_annotations_router, prefix="/api/admin")  # P-admin-data(T18)
 
 @app.get("/api/health")
 def health() -> dict:

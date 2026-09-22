@@ -5,6 +5,7 @@
  */
 import { createRouter, createWebHistory } from "vue-router"
 import { useUserStore } from "@/stores/user"
+import { useMessageStore } from "@/stores/message"
 
 declare module "vue-router" {
   interface RouteMeta {
@@ -71,6 +72,11 @@ router.beforeEach(async (to) => {
     return "/"
   }
   return true
+})
+
+// 路由切换刷新未读数（配合 30s 轮询，Spec §6.5）
+router.afterEach(() => {
+  void useMessageStore().refresh()
 })
 
 export default router

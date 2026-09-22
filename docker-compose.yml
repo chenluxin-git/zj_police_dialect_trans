@@ -1,0 +1,30 @@
+# 浙江公安方言语料采集平台——双容器编排
+# 用法见 deploy/README.md（证书生成、SECRET_KEY 更换、冒烟清单）
+services:
+  backend:
+    build: ./server
+    container_name: zjpdt-backend
+    env_file: ./server/.env.docker
+    environment:
+      # 优先级高于 env_file；部署机在 shell 注入或改这里
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-prod}
+    volumes:
+      - app-data:/data          # app.db + audio_storage + exports 全部落卷
+    expose:
+      - "8000"                  # 仅 compose 网内可见，由 web 反代对外
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    container_name: zjpdt-web
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/certs:/etc/nginx/certs:ro   # 自签证书（README 附 openssl 生成命令）
+    restart: unless-stopped
+
+volumes:
+  app-data:

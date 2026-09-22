@@ -37,3 +37,16 @@ export function getMessage(id: number) {
 export function readAllMessages() {
   return api.post<{ updated: number }>("/messages/read-all")
 }
+
+/** 四类消息 tag 映射（T31：后端无类型字段，前端按 title 前缀映射） */
+export interface MessageTag {
+  cls: string
+  label: string
+}
+
+export function messageTag(title: string): MessageTag {
+  if (title.startsWith("录音质检未通过")) return { cls: "zp-tag--danger", label: "质检" }
+  if (title.startsWith("新任务")) return { cls: "zp-tag--navy", label: "任务" }
+  if (title.includes("公告")) return { cls: "zp-tag--gold", label: "公告" }
+  return { cls: "zp-tag--blue", label: "通知" }
+}

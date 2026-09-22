@@ -17,6 +17,7 @@ from ...core.database import SessionLocal, get_db
 from ...models import Dialect, ImportTask, Recording, Text, User
 from ...schemas import ok
 from ..deps import require_admin, resolve_scope
+from .audio_upload import _resolve_region  # 区县级强制裁定（2026-09-22）：三入库口共一定义点
 
 router = APIRouter(prefix="/texts", tags=["管理端-文本导入"])
 manage_router = APIRouter(prefix="/text-import-manage", tags=["管理端-文本导入台账"])
@@ -85,12 +86,6 @@ def _parse(content: bytes, ext: str) -> list[str]:
             seen.add(s)
             out.append(s)
     return out
-
-
-def _resolve_region(admin: User, region_code: str | None) -> str:
-    if admin.role == "super_admin" and region_code:
-        return region_code
-    return admin.region_code or ""
 
 
 def _dialect_of(db: Session, region_code: str) -> tuple[str, str]:
@@ -165,7 +160,7 @@ async def import_texts(
     ext = os.path.splitext(file_name)[1].lower()
     if ext not in (".txt", ".docx"):
         raise HTTPException(400, "仅支持 txt/docx 文件")
-    region = _resolve_region(admin, region_code)
+    region = _resolve_region(db, admin, region_code)
     task = ImportTask(status="pending")
     db.add(task)
     db.commit()

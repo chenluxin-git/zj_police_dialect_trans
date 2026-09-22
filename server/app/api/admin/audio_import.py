@@ -109,7 +109,7 @@ def import_scan(body: ScanBody, background: BackgroundTasks,
         norm_path = os.path.normcase(server_path)
         if norm_path != norm_root and not norm_path.startswith(norm_root + os.sep):
             raise HTTPException(400, f"路径必须在扫盘根目录 {root} 内")
-    region = _resolve_region(admin, body.region_code)
+    region = _resolve_region(db, admin, body.region_code)
     dialect_code = _dialect_code(db, region)
     task = ImportTask(status="pending")
     db.add(task)

@@ -16,7 +16,18 @@ import {
 } from "@/api/admin/texts"
 
 const userStore = useUserStore()
-const isSuper = computed(() => userStore.user?.role === "super_admin")
+
+// 规格裁定 2026-09-22：导入强制落区县级（用户领取为精确匹配，市/省级归属成死数据）
+// 区县管理员默认本辖区（后端自动）；市管限本市下辖区县、省管/超管全省区县，必选
+const ownRegion = computed(() =>
+  regions.value.find((r) => r.code === userStore.user?.region_code))
+const needDistrictPick = computed(() =>
+  regions.value.length > 0 && ownRegion.value?.level !== "district")
+const districtOptions = computed(() => {
+  const districts = regions.value.filter((r) => r.level === "district")
+  const own = ownRegion.value
+  return own?.level === "city" ? districts.filter((r) => r.parent_code === own.code) : districts
+})
 
 const CATEGORIES = [
   { value: "police", label: "警情" },
@@ -115,10 +126,14 @@ async function startImport() {
     ElMessage.warning("请先选择 txt / docx 文件")
     return
   }
+  if (needDistrictPick.value && !regionCode.value) {
+    ElMessage.warning("请选择归属区县（市/省级归属的文本县级用户无法领取）")
+    return
+  }
   const form = new FormData()
   form.append("file", file.value)
   form.append("category", category.value)
-  if (isSuper.value && regionCode.value) form.append("region_code", regionCode.value)
+  if (regionCode.value) form.append("region_code", regionCode.value)
 
   importing.value = true
   task.value = { status: "processing", total_count: 0, error_message: null }
@@ -159,12 +174,12 @@ onUnmounted(clearTimer)
           </div>
           <div class="zp-field">
             <label>归属区域<span class="req">*</span></label>
-            <select v-if="isSuper" class="zp-select" v-model="regionCode" aria-label="归属区域">
-              <option value="">本辖区（自动）</option>
-              <option v-for="r in regions" :key="r.code" :value="r.code">{{ r.name }}</option>
+            <select v-if="needDistrictPick" class="zp-select" v-model="regionCode" aria-label="归属区域">
+              <option value="">请选择区县</option>
+              <option v-for="r in districtOptions" :key="r.code" :value="r.code">{{ r.name }}</option>
             </select>
             <input v-else class="zp-input" :value="ownRegionName" disabled />
-            <p class="zp-hint">超级管理员可选任意区域，区县管理员固定本辖区</p>
+            <p class="zp-hint">导入须落区县级：区县管理员默认本辖区；市/省级管理员请选定区县，否则县级用户无法领取</p>
           </div>
         </div>
 

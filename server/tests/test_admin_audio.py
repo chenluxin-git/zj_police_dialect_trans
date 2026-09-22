@@ -75,12 +75,12 @@ def test_upload_region_override(client, db, tmp_path, monkeypatch):
     assert r.status_code == 200
     assert db.query(AudioFile).one().region_code == "331082"
 
-    # admin 传 region_code 被忽略 → 仍归属本人 331004
-    client.post("/api/admin/audio/upload", headers=auth_of(admin),
-                data={"region_code": "331082"},
-                files=[("files", ("s.wav", src.read_bytes(), "audio/wav"))])
-    af = db.query(AudioFile).order_by(AudioFile.id.desc()).first()
-    assert af.region_code == "331004" and af.dialect_code == "dh_lq"
+    # admin 传 scope 外区县 → 403（规格裁定 2026-09-22：指定值须为辖区内区县级，不再静默忽略）
+    r2 = client.post("/api/admin/audio/upload", headers=auth_of(admin),
+                     data={"region_code": "331082"},
+                     files=[("files", ("s.wav", src.read_bytes(), "audio/wav"))])
+    assert r2.status_code == 403
+    assert db.query(AudioFile).count() == 1  # 仍仅超管那条，未落库
 
 
 # ---------- 扫盘 ----------

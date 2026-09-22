@@ -15,12 +15,23 @@ import {
 } from "@/api/admin/texts"
 
 const userStore = useUserStore()
-const isSuper = computed(() => userStore.user?.role === "super_admin")
 
 const regions = ref<RegionItem[]>([])
 const serverPath = ref("")
 const recursive = ref(true)
 const regionCode = ref("")
+
+// 规格裁定 2026-09-22：导入强制落区县级（用户领取为精确匹配，市/省级归属成死数据）
+// 区县管理员默认本辖区（后端自动）；市管限本市下辖区县、省管/超管全省区县，必选
+const ownRegion = computed(() =>
+  regions.value.find((r) => r.code === userStore.user?.region_code))
+const needDistrictPick = computed(() =>
+  regions.value.length > 0 && ownRegion.value?.level !== "district")
+const districtOptions = computed(() => {
+  const districts = regions.value.filter((r) => r.level === "district")
+  const own = ownRegion.value
+  return own?.level === "city" ? districts.filter((r) => r.parent_code === own.code) : districts
+})
 
 const scanning = ref(false)
 const task = ref<AudioScanPoll | null>(null)
@@ -82,13 +93,17 @@ async function startScan() {
     ElMessage.warning("请输入服务器文件夹路径")
     return
   }
+  if (needDistrictPick.value && !regionCode.value) {
+    ElMessage.warning("请选择归属区县（市/省级归属的音频县级用户无法领取）")
+    return
+  }
   scanning.value = true
   task.value = null
   try {
     const data = await startAudioScan({
       server_path: serverPath.value.trim(),
       recursive: recursive.value,
-      region_code: isSuper.value && regionCode.value ? regionCode.value : undefined,
+      region_code: regionCode.value || undefined,
     })
     pollTask(data.task_id)
   } catch {
@@ -122,10 +137,10 @@ onUnmounted(clearTimer)
             包含子目录（递归扫描）
           </label>
           <div style="flex: 1">
-            <label style="display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px">归属区域</label>
-            <select v-if="isSuper" class="zp-select" v-model="regionCode" aria-label="归属区域">
-              <option value="">本辖区（自动）</option>
-              <option v-for="r in regions" :key="r.code" :value="r.code">{{ r.name }}</option>
+            <label style="display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px">归属区域<span class="req">*</span></label>
+            <select v-if="needDistrictPick" class="zp-select" v-model="regionCode" aria-label="归属区域">
+              <option value="">请选择区县</option>
+              <option v-for="r in districtOptions" :key="r.code" :value="r.code">{{ r.name }}</option>
             </select>
             <input v-else class="zp-input" :value="ownRegionName" disabled />
           </div>

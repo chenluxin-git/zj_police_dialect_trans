@@ -148,7 +148,8 @@ def test_scan_root_whitelist(client, db, tmp_path, ai_env, monkeypatch):
     assert client.post("/api/admin/audio/import", headers=h,
                        json={"server_path": str(sibling), "recursive": False}).status_code == 400
     r = client.post("/api/admin/audio/import", headers=h,
-                    json={"server_path": str(root / "lib"), "recursive": False})
+                    json={"server_path": str(root / "lib"), "recursive": False,
+                          "region_code": "331004"})  # 超管须显式区县级（规格裁定 2026-09-22）
     assert r.status_code == 200 and r.json()["code"] == 0
 
 

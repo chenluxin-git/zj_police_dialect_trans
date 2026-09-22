@@ -5,10 +5,10 @@
 - 已有 cancelled / 无 → 新建（base_count = 当前存量快照）
 - 每次成功下达（含批量逐人）send_message(uid, "新任务", ...)
 """
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,20 +28,20 @@ _DONE_KEY = {"recording": "recording_done", "annotation": "annotation_done"}
 
 class TaskAssignBody(BaseModel):
     user_id: int
-    type: str
-    target_count: int
+    type: Literal["recording", "annotation"]  # 终审 Important#3：裸 str 传入未知值致 KeyError 500
+    target_count: int = Field(ge=1)
     note: str = ""
 
 
 class TaskBatchBody(BaseModel):
     user_ids: List[int]
-    type: str
-    target_count: int
+    type: Literal["recording", "annotation"]
+    target_count: int = Field(ge=1)
     note: str = ""
 
 
 class TaskUpdateBody(BaseModel):
-    target_count: Optional[int] = None
+    target_count: Optional[int] = Field(default=None, ge=1)
     note: Optional[str] = None
     status: Optional[str] = None
 

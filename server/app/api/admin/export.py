@@ -255,6 +255,13 @@ def run_export_task(task_id: int, admin_id: int, items: list[dict]) -> None:
 
 # ---------- 轮询与下载 ----------
 
+def _own_or_403(task: ExportTask, admin: User) -> None:
+    """导出包内容按创建者 scope 打包（逐条 scope 校验）——状态/下载仅限创建者与超管，
+    防他县管理员凭自增 task_id 取包（终审 Important#2）。"""
+    if task.created_by != admin.id and admin.role != "super_admin":
+        raise HTTPException(status_code=403, detail="只能查看/下载自己创建的导出任务")
+
+
 @router.get("/task/{task_id}", response_model=ApiResponse[ExportTaskStatusData])
 def task_status(task_id: int,
                 admin: User = Depends(require_admin),
@@ -262,6 +269,7 @@ def task_status(task_id: int,
     task = db.get(ExportTask, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="任务不存在")
+    _own_or_403(task, admin)
     file_url = None
     if task.status == "completed" and task.file_path and os.path.exists(task.file_path):
         file_url = f"/api/admin/export/download/{task.id}"
@@ -288,6 +296,7 @@ def download(task_id: int,
     task = db.get(ExportTask, task_id)
     if task is None or task.status != "completed":
         raise HTTPException(status_code=404, detail="文件不存在或未完成")
+    _own_or_403(task, admin)
     if not task.file_path or not os.path.exists(task.file_path):
         raise HTTPException(status_code=404, detail="文件已删除")  # 即焚后二次下载
     background_tasks.add_task(_burn_file, task.file_path)

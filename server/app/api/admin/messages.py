@@ -43,7 +43,10 @@ def send_admin_message(
     db: Session = Depends(get_db),
 ):
     if payload.target_type == "user":
-        candidates = [int(payload.target_value)]
+        try:
+            candidates = [int(str(payload.target_value).strip())]
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="按人员发送时 target_value 必须是用户 id（数字）")
     elif payload.target_type == "region":
         codes = _expand_region(db, str(payload.target_value))
         candidates = [u.id for u in db.query(User).filter(User.region_code.in_(codes)).all()]

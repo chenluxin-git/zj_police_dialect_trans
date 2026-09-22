@@ -12,10 +12,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from ...core.config import settings
 from ...core.database import SessionLocal, get_db
 from ...models import Dialect, ImportTask, Recording, Text, User
 from ...schemas import ok
-from ..deps import require_admin
+from ..deps import require_admin, resolve_scope
 
 router = APIRouter(prefix="/texts", tags=["管理端-文本导入"])
 manage_router = APIRouter(prefix="/text-import-manage", tags=["管理端-文本导入台账"])
@@ -27,7 +28,17 @@ _SAMPLE = ["警察同志，请你说明一下案发时的具体情况。", "请�
 
 
 def _manifest_dir() -> str:
-    return "data/text_imports"
+    return settings.text_import_dir  # 容器内指向 /data 卷（.env.docker），防侧车台账落临时层
+
+
+def _visible_or_403(db: Session, admin: User, task: ImportTask) -> dict:
+    """台账辖区隔离（终审 Important#1）：轮询/详情/撤销仅限本辖区批次；
+    超管/省管 scope=None 全量可见，市/县管按 manifest region_code ∈ resolve_scope。"""
+    m = _load_manifest(task.id)
+    scope = resolve_scope(db, admin)
+    if scope is not None and m.get("region_code", "") not in scope:
+        raise HTTPException(403, "该导入批次不在你的辖区")
+    return m
 
 
 def _manifest_path(task_id: int) -> str:
@@ -170,7 +181,7 @@ def poll_import(task_id: int, admin: User = Depends(require_admin), db: Session 
     task = db.get(ImportTask, task_id)
     if task is None:
         raise HTTPException(404, "任务不存在")
-    m = _load_manifest(task_id)
+    m = _visible_or_403(db, admin, task)
     return ok({"task_id": task.id, "status": task.status, "error_message": task.error_message,
                "total_count": m.get("total_count", 0)})
 
@@ -180,10 +191,13 @@ def poll_import(task_id: int, admin: User = Depends(require_admin), db: Session 
 @manage_router.get("")
 def list_manage(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                 admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    scope = resolve_scope(db, admin)
     rows = []
     for t in db.query(ImportTask).order_by(ImportTask.id.desc()).all():
         m = _load_manifest(t.id)
         if m.get("kind") != "text":
+            continue
+        if scope is not None and m.get("region_code", "") not in scope:  # 台账辖区隔离
             continue
         rows.append({"id": t.id, "status": t.status, "file_name": m.get("file_name", ""),
                      "category": m.get("category", ""), "region_code": m.get("region_code", ""),
@@ -200,7 +214,7 @@ def manage_detail(task_id: int, admin: User = Depends(require_admin), db: Sessio
     task = db.get(ImportTask, task_id)
     if task is None:
         raise HTTPException(404, "任务不存在")
-    m = _load_manifest(task_id)
+    m = _visible_or_403(db, admin, task)
     sample = [t.content for tid in m.get("text_ids", [])[:10] if (t := db.get(Text, tid))]
     return ok({"id": task.id, "status": task.status, "file_name": m.get("file_name", ""),
                "category": m.get("category", ""), "region_code": m.get("region_code", ""),
@@ -213,7 +227,7 @@ def manage_undo(task_id: int, admin: User = Depends(require_admin), db: Session 
     task = db.get(ImportTask, task_id)
     if task is None:
         raise HTTPException(404, "任务不存在")
-    m = _load_manifest(task_id)
+    m = _visible_or_403(db, admin, task)
     ids = m.get("text_ids", [])
     if not ids:
         db.delete(task)

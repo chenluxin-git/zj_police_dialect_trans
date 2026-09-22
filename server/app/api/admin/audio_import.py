@@ -9,11 +9,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from ...core.config import settings
 from ...core.database import SessionLocal, get_db
 from ...models import AudioFile, ImportTask, User
 from ...schemas import ok
 from ...utils.file_scanner import scan_audio_files
-from ..deps import require_admin
+from ..deps import require_admin, resolve_scope
 from ..recordings import _ffprobe_duration
 from .audio_upload import _dialect_code, _resolve_region
 
@@ -29,7 +30,7 @@ class ScanBody(BaseModel):
 
 
 def _manifest_dir() -> str:
-    return "data/audio_imports"
+    return settings.audio_import_dir  # 容器内指向 /data 卷（.env.docker），防侧车台账落临时层
 
 
 def _manifest_path(task_id: int) -> str:
@@ -80,6 +81,7 @@ def _process_scan(task_id: int, server_path: str, recursive: bool,
             imported += 1
 
         _save_manifest(task_id, {"kind": "audio", "server_path": server_path,
+                                 "region_code": region_code,
                                  "found": len(files), "imported": imported,
                                  "skipped": skipped, "failed": failed})
         task.status = "completed"
@@ -101,12 +103,19 @@ def import_scan(body: ScanBody, background: BackgroundTasks,
     if not os.path.isdir(body.server_path):
         raise HTTPException(400, "服务器路径不存在或不是目录")
     server_path = os.path.abspath(body.server_path)  # 去重按绝对路径比对
+    root = settings.scan_root  # 终审 Important#4：扫盘白名单根目录（容器/生产必设），防任意目录枚举
+    if root:
+        norm_root = os.path.normcase(os.path.abspath(root))
+        norm_path = os.path.normcase(server_path)
+        if norm_path != norm_root and not norm_path.startswith(norm_root + os.sep):
+            raise HTTPException(400, f"路径必须在扫盘根目录 {root} 内")
     region = _resolve_region(admin, body.region_code)
     dialect_code = _dialect_code(db, region)
     task = ImportTask(status="pending")
     db.add(task)
     db.commit()
     _save_manifest(task.id, {"kind": "audio", "server_path": server_path,
+                             "region_code": region,
                              "found": 0, "imported": 0, "skipped": 0, "failed": []})
     background.add_task(_process_scan, task.id, server_path, body.recursive, region, dialect_code)
     return ok({"task_id": task.id})
@@ -118,6 +127,9 @@ def poll_scan(task_id: int, admin: User = Depends(require_admin), db: Session = 
     if task is None:
         raise HTTPException(404, "任务不存在")
     m = _load_manifest(task_id)
+    scope = resolve_scope(db, admin)  # 扫盘任务辖区隔离（同文本台账口径）
+    if scope is not None and m.get("region_code", "") not in scope:
+        raise HTTPException(403, "该导入任务不在你的辖区")
     return ok({"task_id": task.id, "status": task.status, "error_message": task.error_message,
                "found": m.get("found", 0), "imported": m.get("imported", 0),
                "skipped": m.get("skipped", 0), "failed": m.get("failed", [])})

@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     qc_max_retry: int = 3
     qc_scan_interval: int = 60
 
+    # ---------- 导入/扫盘运行目录（容器内指向 /data 卷，防侧车台账落容器临时层） ----------
+    text_import_dir: str = "data/text_imports"
+    audio_import_dir: str = "data/audio_imports"
+    scan_root: str = ""   # 扫盘白名单根目录；空=不限制（仅限本机开发），生产/容器必设
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

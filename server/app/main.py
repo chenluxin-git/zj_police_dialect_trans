@@ -34,6 +34,10 @@ from .api.admin.texts import router as admin_texts_router  # P-admin-content(T16
 from .api.admin.text_import import router as admin_text_import_router, manage_router as admin_text_import_manage_router  # P-admin-content(T17)
 from .api.admin.audio_upload import router as admin_audio_upload_router  # P-admin-content(T19)
 from .api.admin.audio_import import router as admin_audio_import_router  # P-admin-content(T19)
+from .api.admin import admin_recordings_router, admin_annotations_router  # P-admin-data(T18)
+from .api.admin import admin_stats_router  # P-admin-data(T20)
+from .api.admin import admin_tasks_router  # P-admin-data(T21)
+from .api.admin import admin_messages_router  # P-admin-data(T22)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(base_router, prefix="/api")
@@ -51,6 +55,11 @@ app.include_router(admin_text_import_router, prefix="/api/admin")
 app.include_router(admin_text_import_manage_router, prefix="/api/admin")
 app.include_router(admin_audio_upload_router, prefix="/api/admin")
 app.include_router(admin_audio_import_router, prefix="/api/admin")
+app.include_router(admin_recordings_router, prefix="/api/admin")  # P-admin-data(T18)
+app.include_router(admin_annotations_router, prefix="/api/admin")  # P-admin-data(T18)
+app.include_router(admin_stats_router, prefix="/api/admin")  # P-admin-data(T20)
+app.include_router(admin_tasks_router, prefix="/api/admin")  # P-admin-data(T21)
+app.include_router(admin_messages_router, prefix="/api/admin")  # P-admin-data(T22)
 
 @app.get("/api/health")
 def health() -> dict:

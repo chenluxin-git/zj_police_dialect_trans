@@ -4,3 +4,8 @@
 from .users import router as users_router                     # P-admin-users(T14)
 from .user_import import router as user_import_router         # P-admin-users(T15)
 from . import texts, text_import, audio_upload, audio_import  # noqa: F401  # P-admin-content(T16/T17/T19)
+from .recordings import router as admin_recordings_router  # P-admin-data(T18)
+from .annotations import router as admin_annotations_router  # P-admin-data(T18)
+from .stats import router as admin_stats_router  # P-admin-data(T20)
+from .tasks import router as admin_tasks_router  # P-admin-data(T21)
+from .messages import router as admin_messages_router  # P-admin-data(T22)

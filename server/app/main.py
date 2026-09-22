@@ -23,11 +23,15 @@ from .api.auth import router as auth_router
 from .api.base import router as base_router
 from .api.texts import router as texts_router
 from .api.recordings import router as recordings_router
+from .api.tasks import router as tasks_router  # P-social(T12)：我的任务进度
+from .api.messages import router as messages_router  # P-social(T13)：站内消息
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(base_router, prefix="/api")
 app.include_router(texts_router, prefix="/api")
 app.include_router(recordings_router, prefix="/api")
+app.include_router(tasks_router)
+app.include_router(messages_router)
 
 @app.get("/api/health")
 def health() -> dict:

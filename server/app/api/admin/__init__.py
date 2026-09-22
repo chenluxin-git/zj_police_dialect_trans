@@ -4,4 +4,5 @@
 from .recordings import router as admin_recordings_router  # P-admin-data(T18)
 from .annotations import router as admin_annotations_router  # P-admin-data(T18)
 from .stats import router as admin_stats_router  # P-admin-data(T20)
+from .tasks import router as admin_tasks_router  # P-admin-data(T21)
 

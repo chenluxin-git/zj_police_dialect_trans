@@ -17,7 +17,6 @@ export interface AnnotationItem {
   id: number
   file_id: number
   file_name: string
-  is_dialect: boolean
   translation: string
   region_code: string
   created_at: string
@@ -32,7 +31,6 @@ export interface AnnotationPage {
 
 export interface AnnotationPayload {
   file_id: number
-  is_dialect: boolean
   translation: string
 }
 

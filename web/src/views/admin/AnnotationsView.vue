@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * 标注管理（dome/admin-annotations.html 1:1）：是否方言/译文关键词筛选 + 表格
- * + 播放（/api/audio/files/{id}/file）+ 删除（音频回待标注队列）
- * + 底部统计「是方言 N / 不是 M」（两次轻量 page_size=1 查询聚合）
+ * 标注管理（dome/admin-annotations.html 1:1）：译文关键词筛选 + 表格
+ * + 播放（/api/audio/files/{id}/file）+ 删除（音频回待标注队列）（已取消是否方言判定）
  */
 import { onMounted, onUnmounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
@@ -19,10 +18,8 @@ const items = ref<AdminAnnotation[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
-const isDialect = ref("") // "" | "true" | "false"
 const keyword = ref("")
 const loading = ref(false)
-const dialectCounts = ref({ yes: 0, no: 0 })
 
 let listenUrl = ""
 
@@ -33,27 +30,16 @@ function fmtDateTime(iso: string | null) {
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-function isDialectParam() {
-  if (isDialect.value === "") return undefined
-  return isDialect.value === "true"
-}
-
 async function load() {
   loading.value = true
   try {
-    const [data, yes, no] = await Promise.all([
-      listAdminAnnotations({
-        is_dialect: isDialectParam(),
-        q: keyword.value || undefined,
-        page: page.value,
-        page_size: pageSize,
-      }),
-      listAdminAnnotations({ is_dialect: true, q: keyword.value || undefined, page: 1, page_size: 1 }),
-      listAdminAnnotations({ is_dialect: false, q: keyword.value || undefined, page: 1, page_size: 1 }),
-    ])
+    const data = await listAdminAnnotations({
+      q: keyword.value || undefined,
+      page: page.value,
+      page_size: pageSize,
+    })
     items.value = data.items
     total.value = data.total
-    dialectCounts.value = { yes: yes.total, no: no.total }
   } finally {
     loading.value = false
   }
@@ -64,7 +50,6 @@ function search() {
   void load()
 }
 function reset() {
-  isDialect.value = ""
   keyword.value = ""
   page.value = 1
   void load()
@@ -80,7 +65,7 @@ async function listen(row: AdminAnnotation) {
 
 async function remove(row: AdminAnnotation) {
   await ElMessageBox.confirm(
-    `确定删除这条标注吗？删除后标注人任务进度相应扣减，该音频重新进入待标注队列。\n「${row.translation || row.file_name}」`,
+    `确定删除这条标注吗？删除后标注人任务进度相应扣减，该音频重新进入待标注队列。\n${row.translation || row.file_name}`,
     "删除标注",
     { confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning" },
   )
@@ -104,11 +89,6 @@ onUnmounted(() => {
 
     <!-- 筛选栏 -->
     <div class="zp-filter">
-      <select class="zp-select" v-model="isDialect" aria-label="是否方言">
-        <option value="">全部判定</option>
-        <option value="true">是方言</option>
-        <option value="false">不是方言</option>
-      </select>
       <input class="zp-input" v-model="keyword" placeholder="普通话翻译关键词" aria-label="普通话翻译关键词" @keyup.enter="search" />
       <button class="zp-btn zp-btn--primary" type="button" @click="search">查询</button>
       <button class="zp-btn zp-btn--ghost" type="button" @click="reset">重置</button>
@@ -122,8 +102,7 @@ onUnmounted(() => {
             <tr>
               <th>标注人</th>
               <th>音频文件</th>
-              <th>是否方言</th>
-              <th style="width: 34%">普通话翻译</th>
+              <th style="width: 44%">普通话翻译</th>
               <th>标注时间</th>
               <th class="zp-text-right">操作</th>
             </tr>
@@ -133,12 +112,7 @@ onUnmounted(() => {
               <td><b>{{ row.annotator_name }}</b></td>
               <td class="num">{{ row.file_name }}</td>
               <td>
-                <span class="zp-tag" :class="row.is_dialect ? 'zp-tag--green' : 'zp-tag--gray'">
-                  {{ row.is_dialect ? "是方言" : "不是方言" }}
-                </span>
-              </td>
-              <td>
-                <em v-if="row.translation" class="zp-serif">「{{ row.translation }}」</em>
+                <span v-if="row.translation">{{ row.translation }}</span>
                 <span v-else class="zp-text-3">—</span>
               </td>
               <td class="num">{{ fmtDateTime(row.created_at) }}</td>
@@ -148,14 +122,14 @@ onUnmounted(() => {
               </td>
             </tr>
             <tr v-if="!loading && items.length === 0">
-              <td colspan="6" style="color: var(--ink-3); padding: 32px; text-align: center">暂无标注记录</td>
+              <td colspan="5" style="color: var(--ink-3); padding: 32px; text-align: center">暂无标注记录</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center">
         <span class="total" style="font-size: 13px; color: var(--ink-2)">
-          共 {{ total }} 条 · 是方言 {{ dialectCounts.yes }} · 不是方言 {{ dialectCounts.no }}
+          共 {{ total }} 条
         </span>
         <el-pagination
           background

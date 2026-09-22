@@ -17,6 +17,14 @@ import {
   type ExportTaskStatus,
 } from "@/api/admin/export"
 import { listRegions, type RegionItem } from "@/api/admin/texts"
+import { api } from "@/api/http"
+
+interface RegionNode {
+  code: string
+  name: string
+  level: string
+  children: RegionNode[]
+}
 
 const userStore = useUserStore()
 const isSuper = computed(() => userStore.user?.role === "super_admin")
@@ -25,7 +33,7 @@ const CATEGORIES = [
   { value: "", label: "全部类别" },
   { value: "police", label: "警情" },
   { value: "life", label: "生活" },
-  { value: "dirty", label: "脏话" },
+  { value: "dirty", label: "俚语" },
   { value: "place", label: "地名" },
   { value: "custom", label: "自定义" },
 ]
@@ -36,8 +44,25 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 const category = ref("")
-const regionCode = ref("")
 const loading = ref(false)
+
+// 区域筛选（超管）：地市 + 区县两级下拉，地市选定后区县才可选（市码展开整域、区县码精确）
+const regionTree = ref<RegionNode[]>([])
+const cityCode = ref("")
+const districtCode = ref("")
+const regionCode = computed(() => districtCode.value || cityCode.value)
+
+const cityOptions = computed<RegionNode[]>(() =>
+  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
+
+const districtOptions = computed<RegionNode[]>(() =>
+  cityCode.value
+    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
+    : [])
+
+function onCityChange() {
+  districtCode.value = ""
+}
 
 const selected = ref<Set<string>>(new Set())
 const allChecked = computed(
@@ -74,6 +99,13 @@ async function loadRegions() {
     regions.value = await listRegions()
   } catch {
     /* 错误已由 http 拦截器提示 */
+  }
+  if (isSuper.value) {
+    try {
+      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
+    } catch {
+      /* 错误已由 http 拦截器提示 */
+    }
   }
 }
 
@@ -209,10 +241,26 @@ onUnmounted(clearTimer)
           <select class="zp-select" v-model="category" aria-label="类别">
             <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
           </select>
-          <select v-if="isSuper" class="zp-select" v-model="regionCode" aria-label="区域">
-            <option value="">全部区域</option>
-            <option v-for="r in regions" :key="r.code" :value="r.code">{{ r.name }}</option>
-          </select>
+          <template v-if="isSuper">
+            <el-select
+              v-model="cityCode"
+              placeholder="全部地市"
+              clearable
+              style="width: 140px"
+              @change="onCityChange"
+            >
+              <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
+            </el-select>
+            <el-select
+              v-model="districtCode"
+              placeholder="全部区县"
+              clearable
+              :disabled="!cityCode"
+              style="width: 140px"
+            >
+              <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
+            </el-select>
+          </template>
           <button class="zp-btn zp-btn--primary" type="button" @click="search">查询清单</button>
         </div>
       </div>
@@ -248,7 +296,7 @@ onUnmounted(clearTimer)
                   {{ it.source === "recording" ? "采集录音" : "标注音频" }}
                 </span>
               </td>
-              <td><em class="zp-serif">「{{ contentOf(it) }}」</em></td>
+              <td>{{ contentOf(it) }}</td>
               <td>{{ regionName(it.region_code) }}</td>
               <td class="num">{{ fmtDur(it.duration) }}</td>
               <td class="num">{{ fmtDateTime(it.created_at) }}</td>

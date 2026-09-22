@@ -61,7 +61,7 @@ class Annotation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     file_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)  # 一个音频一条标注
     annotator_id: Mapped[int] = mapped_column(Integer, index=True)
-    is_dialect: Mapped[bool] = mapped_column(Boolean)
+    is_dialect: Mapped[bool] = mapped_column(Boolean, default=True)  # 已取消是否方言判定，恒 True（列保留兼容既有库）
     translation: Mapped[str] = mapped_column(TextType, default="")
     region_code: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

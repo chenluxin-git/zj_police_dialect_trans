@@ -20,7 +20,7 @@ const CAT_TAG: Record<string, string> = {
   custom: "zp-tag--gray",
 }
 const catLabel = (c: string) =>
-  ({ police: "警情", life: "生活", dirty: "脏话", place: "地名", custom: "自定义" }[c] || c)
+  ({ police: "警情", life: "生活", dirty: "俚语", place: "地名", custom: "自定义" }[c] || c)
 
 const QC: Record<string, { label: string; cls: string }> = {
   pending: { label: "待质检", cls: "zp-tag--warn" },
@@ -125,7 +125,7 @@ onUnmounted(() => {
         <option value="">全部类别</option>
         <option value="police">警情</option>
         <option value="life">生活</option>
-        <option value="dirty">脏话</option>
+        <option value="dirty">俚语</option>
         <option value="place">地名</option>
         <option value="custom">自定义</option>
       </select>
@@ -159,7 +159,7 @@ onUnmounted(() => {
           <tbody>
             <tr v-for="row in items" :key="row.id">
               <td><b>{{ row.user_name }}</b></td>
-              <td><em class="zp-serif">「{{ row.text_content }}」</em></td>
+              <td>{{ row.text_content }}</td>
               <td><span class="zp-tag" :class="CAT_TAG[row.category] || 'zp-tag--gray'">{{ catLabel(row.category) }}</span></td>
               <td class="num">{{ fmtDur(row.duration) }}</td>
               <td class="num">{{ fmtSize(row.file_size) }}</td>

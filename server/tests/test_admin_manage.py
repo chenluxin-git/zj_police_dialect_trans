@@ -1,6 +1,6 @@
 """T18 管理端录音/标注管理测试：
 - 录音列表：scope 过滤（行含 用户姓名/文本/类别/方言/时长/大小/质检状态/时间/file_url）、qc_status 与 category/region/q 筛选
-- 标注列表：scope 过滤（行含译者与音频 id）、is_dialect 筛选
+- 标注列表：scope 过滤（行含译者与音频 id；已取消是否方言判定）
 - 删标注：scope 内成功回池（行删除）、越界 403、二次删 404
 """
 import pytest
@@ -34,7 +34,7 @@ def make_admins(db):
 
 
 def seed_manage_data(db, tmp_path):
-    """临海：passed/pending 录音各 1 + 已判标注 1；杭州：passed 录音 1 + 未判标注 1"""
+    """临海：passed/pending 录音各 1 + 标注 1；杭州：passed 录音 1 + 标注 1"""
     # 33100400003 避开 auth_header 默认民警 33100400002 的 phone 唯一约束
     u_lh = make_user(db, phone="33100400003", name="临海民警", region="331004")
     u_hz = make_user(db, phone="33010500002", name="杭州民警", region="330105")
@@ -67,8 +67,8 @@ def seed_manage_data(db, tmp_path):
     db.commit()
     ann_lh = Annotation(file_id=af_lh.id, annotator_id=u_lh.id, is_dialect=True,
                         translation="下雨了，收衣服", region_code="331004")
-    ann_hz = Annotation(file_id=af_hz.id, annotator_id=u_hz.id, is_dialect=False,
-                        translation="", region_code="330105")
+    ann_hz = Annotation(file_id=af_hz.id, annotator_id=u_hz.id, is_dialect=True,
+                        translation="外区域译文", region_code="330105")
     db.add_all([ann_lh, ann_hz])
     db.commit()
     return {"u_lh": u_lh, "u_hz": u_hz, "rec1": rec1, "rec2": rec2, "rec3": rec3,
@@ -147,11 +147,11 @@ def test_annotations_scope_and_columns(client, db, auth_header, tmp_path):
     item = r2.json()["data"]["items"][0]
     assert item["annotator_name"] == "临海民警"
     assert item["file_id"] == d["af_lh"].id
-    assert item["is_dialect"] is True
+    assert "is_dialect" not in item
 
-    # is_dialect 筛选
+    # 译文关键词筛选
     r3 = client.get("/api/admin/annotations", headers=auth_of(super_admin),
-                    params={"is_dialect": "false"})
+                    params={"q": "外区域"})
     assert r3.json()["data"]["total"] == 1
     assert r3.json()["data"]["items"][0]["region_code"] == "330105"
 

@@ -1,7 +1,7 @@
 r"""T10 标注作业（移植自旧 app/api/annotations.py）：
 - 3 分钟（180s）惰性锁：next 先全局物理删除过期分配，再随机领一条未被标注且未被分配的音频
 - 区域口径沿用旧项目：音频 region_code 等于用户 region_code 或为空（None/"")才可领
-- 一条音频一条标注（annotations.file_id 唯一约束兜底）；is_dialect=true 时 translation 必填 400
+- 一条音频一条标注（annotations.file_id 唯一约束兜底）；translation 必填 400（已取消是否方言判定）
 - next 契约 {file_id, file_name, file_url, region_code, dialect_code}；无货 HTTP 404 + code=1
 - Annotation.region_code 取自音频文件（模型新增列，非空）；时间基准统一本地 datetime.now()
   （与模型列 default 一致，不得混用 utcnow，否则 8 小时偏移导致锁立即过期）
@@ -38,7 +38,7 @@ def _purge_expired(db: Session) -> int:
 def _ann_dict(ann: Annotation, f: AudioFile | None) -> dict:
     return {"id": ann.id, "file_id": ann.file_id,
             "file_name": f.file_name if f else "（文件已删除）",
-            "is_dialect": ann.is_dialect, "translation": ann.translation,
+            "translation": ann.translation,
             "region_code": ann.region_code,
             "created_at": ann.created_at.isoformat() if ann.created_at else None}
 
@@ -75,8 +75,8 @@ def submit_annotation(body: AnnotationCreate,
         raise HTTPException(404, "音频文件不存在")
     if db.scalar(select(Annotation).where(Annotation.file_id == body.file_id)) is not None:
         raise HTTPException(400, "该音频已被标注")
-    if body.is_dialect and not body.translation:
-        raise HTTPException(400, "方言需提供翻译文本")
+    if not body.translation.strip():
+        raise HTTPException(400, "请填写普通话翻译文本")
     a = db.query(FileAssignment).filter_by(file_id=body.file_id, user_id=current_user.id).first()
     if a is None:
         raise HTTPException(403, "您没有分配此文件，无法提交标注")
@@ -84,8 +84,8 @@ def submit_annotation(body: AnnotationCreate,
         db.delete(a)
         db.commit()
         raise HTTPException(403, "分配已过期，请重新获取")
-    ann = Annotation(file_id=f.id, annotator_id=current_user.id, is_dialect=body.is_dialect,
-                     translation=body.translation if body.is_dialect else "",
+    ann = Annotation(file_id=f.id, annotator_id=current_user.id, is_dialect=True,
+                     translation=body.translation.strip(),
                      region_code=f.region_code)
     db.add(ann)
     db.delete(a)
@@ -107,7 +107,8 @@ def my_annotations(page: int = 1, page_size: int = 20,
 
 @router.get("/my/dialect-count")
 def my_dialect_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    n = db.query(Annotation).filter_by(annotator_id=current_user.id, is_dialect=True).count()
+    """已取消是否方言判定：口径改为我的标注总数（路径保留兼容旧前端）"""
+    n = db.query(Annotation).filter_by(annotator_id=current_user.id).count()
     return ok(n)
 
 
@@ -119,10 +120,9 @@ def update_annotation(annotation_id: int, body: AnnotationCreate,
         raise HTTPException(404, "标注不存在或无权限修改")
     if ann.file_id != body.file_id:
         raise HTTPException(400, "标注与文件不匹配")
-    if body.is_dialect and not body.translation:
-        raise HTTPException(400, "方言需提供翻译文本")
-    ann.is_dialect = body.is_dialect
-    ann.translation = body.translation if body.is_dialect else ""
+    if not body.translation.strip():
+        raise HTTPException(400, "请填写普通话翻译文本")
+    ann.translation = body.translation.strip()
     db.commit()
     return ok(msg="更新成功")
 

@@ -9,6 +9,14 @@ import { ElMessage } from "element-plus"
 import type { UploadFile } from "element-plus"
 import { useUserStore } from "@/stores/user"
 import { listRegions, uploadAudio, type RegionItem } from "@/api/admin/texts"
+import { api } from "@/api/http"
+
+interface RegionNode {
+  code: string
+  name: string
+  level: string
+  children: RegionNode[]
+}
 
 interface UploadRow {
   uid: number
@@ -22,7 +30,7 @@ interface UploadRow {
 const userStore = useUserStore()
 
 const regions = ref<RegionItem[]>([])
-const regionCode = ref("")
+const regionTree = ref<RegionNode[]>([])
 const rows = ref<UploadRow[]>([])
 const uploading = ref(false)
 let uid = 0
@@ -33,11 +41,37 @@ const ownRegion = computed(() =>
   regions.value.find((r) => r.code === userStore.user?.region_code))
 const needDistrictPick = computed(() =>
   regions.value.length > 0 && ownRegion.value?.level !== "district")
-const districtOptions = computed(() => {
-  const districts = regions.value.filter((r) => r.level === "district")
+
+// 归属区域（地市 + 区县两级下拉，地市选定后区县才可选，须选到区县）：市管锁定本市；省管/超管全省
+const cityCode = ref("")
+const districtCode = ref("")
+
+function findNode(nodes: RegionNode[], code: string): RegionNode | null {
+  for (const n of nodes) {
+    if (n.code === code) return n
+    const hit = findNode(n.children, code)
+    if (hit) return hit
+  }
+  return null
+}
+
+const cityOptions = computed<RegionNode[]>(() => {
   const own = ownRegion.value
-  return own?.level === "city" ? districts.filter((r) => r.parent_code === own.code) : districts
+  if (own?.level === "city") {
+    const ownCity = findNode(regionTree.value, own.code)
+    return ownCity ? [ownCity] : []
+  }
+  return regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r]))
 })
+
+const districtOptions = computed<RegionNode[]>(() =>
+  cityCode.value
+    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
+    : [])
+
+function onCityChange() {
+  districtCode.value = ""
+}
 
 const ownRegionName = computed(() => {
   const code = userStore.user?.region_code
@@ -57,6 +91,14 @@ async function loadRegions() {
   } catch {
     /* 错误已由 http 拦截器提示 */
   }
+  if (needDistrictPick.value) {
+    try {
+      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
+      if (cityOptions.value.length === 1) cityCode.value = cityOptions.value[0].code // 市管自动锁定本市
+    } catch {
+      /* 错误已由 http 拦截器提示 */
+    }
+  }
 }
 
 function onFileChange(uploadFile: UploadFile) {
@@ -70,13 +112,13 @@ async function startUpload() {
     ElMessage.warning("请先选择音频文件")
     return
   }
-  if (needDistrictPick.value && !regionCode.value) {
-    ElMessage.warning("请选择归属区县（市/省级归属的音频县级用户无法领取）")
+  if (needDistrictPick.value && !districtCode.value) {
+    ElMessage.warning("请先选择地市并选定归属区县（市/省级归属的音频县级用户无法领取）")
     return
   }
   const form = new FormData()
   rows.value.forEach((r) => form.append("files", r.raw, r.name))
-  if (regionCode.value) form.append("region_code", regionCode.value)
+  if (districtCode.value) form.append("region_code", districtCode.value)
 
   uploading.value = true
   rows.value.forEach((r) => (r.status = "pending"))
@@ -119,10 +161,16 @@ onMounted(loadRegions)
       <div class="zp-card-body">
         <div class="zp-field" style="margin-bottom: 0">
           <label>归属区域<span class="req">*</span></label>
-          <select v-if="needDistrictPick" class="zp-select" v-model="regionCode" aria-label="归属区域">
-            <option value="">请选择区县</option>
-            <option v-for="r in districtOptions" :key="r.code" :value="r.code">{{ r.name }}</option>
-          </select>
+          <div v-if="needDistrictPick" class="zp-flex" style="gap: 8px">
+            <select class="zp-select" v-model="cityCode" aria-label="地市" style="flex: 1" @change="onCityChange">
+              <option value="">选择地市</option>
+              <option v-for="c in cityOptions" :key="c.code" :value="c.code">{{ c.name }}</option>
+            </select>
+            <select class="zp-select" v-model="districtCode" aria-label="区县" style="flex: 1" :disabled="!cityCode">
+              <option value="">选择区县</option>
+              <option v-for="d in districtOptions" :key="d.code" :value="d.code">{{ d.name }}</option>
+            </select>
+          </div>
           <input v-else class="zp-input" :value="ownRegionName" disabled />
           <p class="zp-hint">入库须落区县级：区县管理员默认本辖区；市/省级管理员请选定区县；上传后自动进入该区域标注队列</p>
         </div>

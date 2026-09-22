@@ -17,7 +17,7 @@ const CATEGORIES = [
   { value: "", label: "全部类别" },
   { value: "police", label: "警情" },
   { value: "life", label: "生活" },
-  { value: "dirty", label: "脏话" },
+  { value: "dirty", label: "俚语" },
   { value: "place", label: "地名" },
   { value: "custom", label: "自定义" },
 ]
@@ -29,7 +29,7 @@ const CAT_TAG: Record<string, string> = {
   custom: "zp-tag--gray",
 }
 const catLabel = (c: string) =>
-  ({ police: "警情", life: "生活", dirty: "脏话", place: "地名", custom: "自定义" }[c] || c)
+  ({ police: "警情", life: "生活", dirty: "俚语", place: "地名", custom: "自定义" }[c] || c)
 
 const items = ref<AdminText[]>([])
 const total = ref(0)
@@ -176,7 +176,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="row in items" :key="row.id">
               <td><input type="checkbox" :checked="selected.has(row.id)" @change="toggleOne(row.id)" /></td>
-              <td><em class="zp-serif">「{{ row.content }}」</em></td>
+              <td>{{ row.content }}</td>
               <td><span class="zp-tag" :class="CAT_TAG[row.category] || 'zp-tag--gray'">{{ catLabel(row.category) }}</span></td>
               <td>{{ regionName(row.region_code) }}</td>
               <td class="num">{{ fmtDateTime(row.created_at) }}</td>

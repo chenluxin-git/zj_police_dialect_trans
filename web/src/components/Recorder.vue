@@ -98,10 +98,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="zp-center" style="padding: 28px 20px 24px">
+  <div class="zp-center" style="padding: 14px 16px 12px">
     <button
       v-if="recording"
-      class="zp-btn zp-btn--danger zp-btn--lg"
+      class="zp-btn zp-btn--danger"
       type="button"
       @click="stop()"
     >
@@ -109,16 +109,22 @@ onUnmounted(() => {
     </button>
     <button
       v-else
-      class="zp-btn zp-btn--primary zp-btn--lg"
+      class="zp-btn zp-btn--primary"
       type="button"
       :disabled="disabled"
       @click="start()"
     >
       开始录音
     </button>
-    <p class="zp-timer zp-mt-16">{{ format(seconds) }}</p>
-    <p class="zp-text-3 zp-mt-16">
+    <p class="zp-timer zp-mt-8">{{ format(seconds) }}</p>
+    <p class="zp-text-3 zp-mt-8">
       {{ recording ? "正在录音…点击上方按钮停止" : "建议录音时长 5～20 秒" }}
     </p>
   </div>
 </template>
+
+<style scoped>
+.zp-timer {
+  font-size: 24px;
+}
+</style>

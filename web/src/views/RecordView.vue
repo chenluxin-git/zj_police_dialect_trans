@@ -19,7 +19,7 @@ import Recorder from "@/components/Recorder.vue"
 const CATEGORY: Record<string, { label: string; cls: string }> = {
   police: { label: "警情", cls: "zp-tag--blue" },
   life: { label: "生活", cls: "zp-tag--green" },
-  dirty: { label: "脏话", cls: "zp-tag--warn" },
+  dirty: { label: "俚语", cls: "zp-tag--warn" },
   place: { label: "地名", cls: "zp-tag--gold" },
   custom: { label: "自定义", cls: "zp-tag--gray" },
 }
@@ -233,9 +233,9 @@ onUnmounted(() => {
         </span>
       </template>
     </div>
-    <div class="zp-card-body">
+    <div class="zp-card-body record-text-body">
       <template v-if="text">
-        <p class="zp-dialect">「{{ text.content }}」</p>
+        <p class="zp-dialect">{{ text.content }}</p>
         <div class="zp-flex zp-mt-16">
           <button class="zp-btn zp-btn--ghost" type="button" @click="skipText">换一条</button>
           <button class="zp-btn zp-btn--ghost" type="button" @click="openCustom">自定义文本</button>
@@ -260,7 +260,7 @@ onUnmounted(() => {
       <template v-if="blob">
         <div class="zp-audio-row">
           <button class="play" type="button" aria-label="播放" @click="togglePreview">▶</button>
-          <span class="meta"><b>试听录音</b> ·「{{ text?.content || "" }}」</span>
+          <span class="meta"><b>试听录音</b> · {{ text?.content || "" }}</span>
           <span class="time">{{ fmt(recordSeconds) }} · {{ sizeLabel }}</span>
         </div>
         <div class="zp-flex zp-mt-16">
@@ -330,3 +330,18 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 本次文本卡：放大占版面主体，内容垂直居中，底部留出呼吸空间 */
+.record-text-body {
+  min-height: 220px;
+  padding-bottom: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.record-text-body .zp-dialect {
+  font-size: 26px;
+  line-height: 1.9;
+}
+</style>

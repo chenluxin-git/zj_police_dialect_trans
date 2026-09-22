@@ -151,7 +151,7 @@ def list_my_recordings(
         )
         for rec, text in rows
     ]
-    return ApiResponse[PageData[RecordingItem]](data=PageData(
+    return ApiResponse[PageData[RecordingItem]](data=PageData[RecordingItem](
         total=total, page=page, page_size=page_size, items=items))
 
 

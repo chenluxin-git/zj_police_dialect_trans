@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * 消息发送（T33 / dome/admin-message-send.html 1:1）
- * 收件口径 el-segmented：按人员（scope 用户远程搜索）/ 按区域（级联，市码=全市）/ 按单位（派出所下拉）
+ * 收件口径 el-segmented：按人员（scope 用户远程搜索）/ 按区域（地市+区县两级下拉，市码=全市）/ 按单位（派出所下拉）
  * 右侧已发记录（标题 / 时间 / 收件数 / 已读数），行点开查看消息详情；发送成功回显 sent/skipped。
  */
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { ElMessage } from "element-plus"
 import { api } from "@/api/http"
 import { listUsers } from "@/api/admin/users"
@@ -45,14 +45,27 @@ const targetTypeOptions = [
 
 const targetType = ref("user")
 const userId = ref<number | null>(null)
-const regionCode = ref("")
 const stationName = ref("")
 const title = ref("")
 const content = ref("")
 
 const regionTree = ref<RegionNode[]>([])
 const stations = ref<Station[]>([])
-const regionCascade = ref<string[]>([])
+
+// 区域收件：地市 + 区县两级下拉，地市选定后区县才可选（只选市 = 全市群发，选到区县 = 区县群发）
+const cityCode = ref("")
+const districtCode = ref("")
+const cityOptions = computed<RegionNode[]>(() =>
+  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
+const districtOptions = computed<RegionNode[]>(() =>
+  cityCode.value
+    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
+    : [])
+const regionCode = computed(() => districtCode.value || cityCode.value)
+
+function onCityChange() {
+  districtCode.value = ""
+}
 
 const userOptions = ref<{ value: number; label: string }[]>([])
 const userSearchLoading = ref(false)
@@ -68,10 +81,6 @@ async function searchUsers(q: string) {
   } finally {
     userSearchLoading.value = false
   }
-}
-
-function onRegionChange(val: string[]) {
-  regionCode.value = val.length ? val[val.length - 1] : ""
 }
 
 async function submit() {
@@ -181,15 +190,26 @@ onMounted(() => {
             >
               <el-option v-for="o in userOptions" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
-            <el-cascader
-              v-else-if="targetType === 'region'"
-              v-model="regionCascade"
-              :options="regionTree"
-              :props="{ value: 'code', label: 'name', children: 'children', checkStrictly: true, emitPath: true }"
-              placeholder="选择区域（市码=全市群发）"
-              style="width: 100%"
-              @change="onRegionChange"
-            />
+            <div v-else-if="targetType === 'region'" class="zp-flex" style="gap: 8px">
+              <el-select
+                v-model="cityCode"
+                placeholder="选择地市（全市群发）"
+                clearable
+                style="flex: 1"
+                @change="onCityChange"
+              >
+                <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
+              </el-select>
+              <el-select
+                v-model="districtCode"
+                placeholder="区县（可不选）"
+                clearable
+                :disabled="!cityCode"
+                style="flex: 1"
+              >
+                <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
+              </el-select>
+            </div>
             <el-select
               v-else
               v-model="stationName"

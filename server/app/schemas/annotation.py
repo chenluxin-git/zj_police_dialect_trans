@@ -4,5 +4,4 @@ from pydantic import BaseModel
 
 class AnnotationCreate(BaseModel):
     file_id: int
-    is_dialect: bool
-    translation: str = ""
+    translation: str

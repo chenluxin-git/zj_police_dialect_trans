@@ -1,6 +1,7 @@
 """T23 数据集导出：两源清单 + 后台 ZIP_STORED 打包 + dataset.txt 清单 + 下载即焚 + 逐条 scope 校验
 移植自旧项目 app/api/admin/export.py（机制见规格 §6.8/§9），差异叠加：
-- 两源口径：recordings 仅 qc_status='passed'；audio_files 仅已判方言（annotated=false 反向取未判音频）
+- 两源口径：recordings 仅 qc_status='passed'；audio_files 仅已标注（annotated=false 反向取未标注音频；
+  已取消是否方言判定，存在标注行即视为已标注）
 - 权限由 resolve_scope 统一推导（替代旧 if-else 分支），打包时逐条再校验一次（防清单与打包之间越界）
 - 台账用本项目 ExportTask（status/total_count/processed_count/file_path/created_by；无 error_message 列，
   失败细节进 error.log）
@@ -14,7 +15,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, exists, select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from ...core.config import settings
@@ -49,8 +50,8 @@ def _user_folder(user: User) -> str:
     return f"{safe or 'user'}_{tail4}"
 
 
-def _dialect_annotated_exists():
-    return exists().where(and_(Annotation.file_id == AudioFile.id, Annotation.is_dialect == True))  # noqa: E712
+def _annotated_exists():
+    return exists().where(Annotation.file_id == AudioFile.id)
 
 
 def _collect_items(db: Session, admin: User, region: str | None, category: str | None,
@@ -88,9 +89,9 @@ def _collect_items(db: Session, admin: User, region: str | None, category: str |
             user_real_name=user.real_name if user else "",
             duration=rec.duration, created_at=rec.created_at))
 
-    # 源 2：音频库（默认已判方言；annotated=false 反向取未判方言音频；音频无类别，类别筛选时跳过该源）
+    # 源 2：音频库（默认已标注；annotated=false 反向取未标注音频；音频无类别，类别筛选时跳过该源）
     if category is None:
-        ann_exists = _dialect_annotated_exists()
+        ann_exists = _annotated_exists()
         q2 = db.query(AudioFile).filter(scope_filter(AudioFile.region_code, scope))
         q2 = q2.filter(ann_exists if annotated is not False else ~ann_exists)
         if region_filter is not None:
@@ -121,7 +122,7 @@ def audio_list(
     region: str | None = Query(None, description="区域码：省/市码展开整域，区县码精确"),
     category: str | None = Query(None, description="文本类别（仅录音源）"),
     dialect: str | None = Query(None, description="方言编码"),
-    annotated: bool | None = Query(None, description="音频库源：默认/true=已判方言，false=未判方言"),
+    annotated: bool | None = Query(None, description="音频库源：默认/true=已标注，false=未标注"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
     admin: User = Depends(require_admin),
@@ -131,7 +132,7 @@ def audio_list(
     total = len(items)
     start = (page - 1) * page_size
     page_items = items[start:start + page_size]
-    return ApiResponse[PageData[TwoSourceItem]](data=PageData(
+    return ApiResponse[PageData[TwoSourceItem]](data=PageData[TwoSourceItem](
         total=total, page=page, page_size=page_size, items=page_items))
 
 
@@ -202,7 +203,7 @@ def _pack_one(db: Session, zf: zipfile.ZipFile, item: dict, scope: list[str] | N
             return False
         arcname = f"标注音频/{os.path.basename(af.file_path)}"
         zf.write(af.file_path, arcname)
-        ann = db.query(Annotation).filter_by(file_id=af.id, is_dialect=True).first()
+        ann = db.query(Annotation).filter_by(file_id=af.id).first()
         text_or_trans = ann.translation if ann else "（无翻译）"
         region_code, dialect_code = af.region_code, af.dialect_code
 

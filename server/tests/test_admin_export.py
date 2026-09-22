@@ -1,5 +1,5 @@
 """T23 数据集导出测试：两源清单 / 筛选与 scope / 勾选与全量导出 / ZIP_STORED + dataset.txt / 下载即焚 / 逐条 scope 校验
-口径：计划 T23 Step 1（passed 录音 + 已判方言 audio_file 全量导出 → task completed、ZIP 内 2 音频 + dataset.txt 两行、
+口径：计划 T23 Step 1（passed 录音 + 已标注 audio_file 全量导出 → task completed、ZIP 内 2 音频 + dataset.txt 两行、
 下载即焚二次 404、pending 不入包）+ 清单筛选与逐条 scope 补充。
 后台任务说明：实现用 BackgroundTasks（沿用旧项目机制），TestClient 下 POST 返回即任务已完成；
 后台任务自带会话工厂（模块级 _session_factory），测试重定向到 db fixture 同一引擎（db.get_bind()，
@@ -32,7 +32,7 @@ def seed_regions(db):
 
 
 def seed_export_data(db, tmp_path):
-    """临海（331004，台州辖区）：passed/pending 录音各 1 + 已判/未判音频各 1；杭州（330105）passed 录音 1"""
+    """临海（331004，台州辖区）：passed/pending 录音各 1 + 已标注/未标注音频各 1；杭州（330105）passed 录音 1"""
     u_lh = db.query(User).filter_by(phone="33100400002").first()  # auth_header fixture 可能已建默认民警
     if u_lh is None:
         u_lh = make_user(db)
@@ -106,7 +106,7 @@ def read_zip(resp) -> zipfile.ZipFile:
     return zipfile.ZipFile(io.BytesIO(resp.content))
 
 
-# ---------- 两源清单（计划：recordings 仅 passed + audio_files 已判方言） ----------
+# ---------- 两源清单（计划：recordings 仅 passed + audio_files 已标注） ----------
 
 def test_audio_list_two_sources_and_scope(client, db, auth_header, tmp_path):
     seed_regions(db)
@@ -116,7 +116,7 @@ def test_audio_list_two_sources_and_scope(client, db, auth_header, tmp_path):
     # 民警访问管理端 → 403
     assert client.get("/api/admin/export/audio-list", headers=auth_header).status_code == 403
 
-    # 超管：passed 3 条（331004 两条其一为 pending 不入列）+ 已判方言音频 1 条 = 3
+    # 超管：passed 3 条（331004 两条其一为 pending 不入列）+ 已标注音频 1 条 = 3
     r = client.get("/api/admin/export/audio-list", headers=auth_of(super_admin))
     assert r.status_code == 200
     data = r.json()["data"]
@@ -167,7 +167,7 @@ def test_audio_list_filters(client, db, tmp_path):
     assert client.get("/api/admin/export/audio-list", headers=h,
                       params={"region": "331004"}).json()["data"]["total"] == 2
 
-    # annotated=false：音频库源切换为未判方言音频 → passed 录音 2 + 未判音频 1 = 3，且无译文
+    # annotated=false：音频库源切换为未标注音频 → passed 录音 2 + 未标注音频 1 = 3，且无译文
     r = client.get("/api/admin/export/audio-list", headers=h, params={"annotated": "false"})
     data = r.json()["data"]
     assert data["total"] == 3
@@ -235,7 +235,7 @@ def test_export_all_excludes_pending_and_unannotated(client, db, tmp_path, expor
     task_id = r.json()["data"]["task_id"]
     tdata = client.get(f"/api/admin/export/task/{task_id}", headers=h).json()["data"]
     assert tdata["status"] == "completed"
-    assert tdata["total_count"] == 3  # passed 3（含杭州）+ 已判音频 1；pending 与未判音频不入包
+    assert tdata["total_count"] == 3  # passed 3（含杭州）+ 已标注音频 1；pending 与未标注音频不入包
 
     dl = client.get(f"/api/admin/export/download/{task_id}", headers=h)
     zf = read_zip(dl)

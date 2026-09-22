@@ -16,7 +16,7 @@ import {
 const CATEGORY: Record<string, { label: string; cls: string }> = {
   police: { label: "警情", cls: "zp-tag--blue" },
   life: { label: "生活", cls: "zp-tag--green" },
-  dirty: { label: "脏话", cls: "zp-tag--warn" },
+  dirty: { label: "俚语", cls: "zp-tag--warn" },
   place: { label: "地名", cls: "zp-tag--gold" },
   custom: { label: "自定义", cls: "zp-tag--gray" },
 }
@@ -109,7 +109,7 @@ async function download(row: RecordingItem) {
 
 async function remove(row: RecordingItem) {
   await ElMessageBox.confirm(
-    `确定删除这条录音吗？删除后音频文件同时清除，且任务进度将相应扣减，无法恢复。\n「${row.text_content}」`,
+    `确定删除这条录音吗？删除后音频文件同时清除，且任务进度将相应扣减，无法恢复。\n${row.text_content}`,
     "删除录音",
     { confirmButtonText: "确认删除", cancelButtonText: "取消", type: "warning" },
   )
@@ -142,7 +142,7 @@ onUnmounted(() => {
       <option value="">全部类别</option>
       <option value="police">警情</option>
       <option value="life">生活</option>
-      <option value="dirty">脏话</option>
+      <option value="dirty">俚语</option>
       <option value="place">地名</option>
       <option value="custom">自定义</option>
     </select>
@@ -180,7 +180,7 @@ onUnmounted(() => {
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
-            <td><em class="zp-serif">「{{ row.text_content }}」</em></td>
+            <td>{{ row.text_content }}</td>
             <td><span class="zp-tag" :class="catCls(row.category)">{{ catLabel(row.category) }}</span></td>
             <td>{{ row.dialect }}</td>
             <td class="num">{{ fmtDur(row.duration) }}</td>

@@ -58,7 +58,7 @@ const roleOptions = computed(() => {
 
 // ---------- 列表 ----------
 const loading = ref(false)
-const filters = reactive({ real_name: "", phone: "", role: "", regionCode: "", station: "" })
+const filters = reactive({ real_name: "", phone: "", role: "", station: "" })
 const items = ref<UserItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -66,7 +66,23 @@ const pageSize = 20
 
 const regionTree = ref<RegionNode[]>([])
 const allStations = ref<Station[]>([])
-const regionCascadeFilter = ref<string[]>([])
+
+// 区域筛选：地市 + 区县两级下拉，地市选定后区县才可选（市码展开整域、区县码精确）
+const filterCity = ref("")
+const filterDistrict = ref("")
+const filterRegionCode = computed(() => filterDistrict.value || filterCity.value)
+
+const cityOptions = computed<RegionNode[]>(() =>
+  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
+
+const filterDistrictOptions = computed<RegionNode[]>(() =>
+  filterCity.value
+    ? cityOptions.value.find((c) => c.code === filterCity.value)?.children ?? []
+    : [])
+
+function onFilterCityChange() {
+  filterDistrict.value = ""
+}
 
 async function load() {
   loading.value = true
@@ -75,7 +91,7 @@ async function load() {
       real_name: filters.real_name || undefined,
       phone: filters.phone || undefined,
       role: filters.role || undefined,
-      region_code: filters.regionCode || undefined,
+      region_code: filterRegionCode.value || undefined,
       station: filters.station || undefined,
       page: page.value,
       page_size: pageSize,
@@ -96,14 +112,10 @@ function reset() {
   filters.real_name = ""
   filters.phone = ""
   filters.role = ""
-  filters.regionCode = ""
   filters.station = ""
-  regionCascadeFilter.value = []
+  filterCity.value = ""
+  filterDistrict.value = ""
   search()
-}
-
-function onFilterRegionChange(val: string[]) {
-  filters.regionCode = val.length ? val[val.length - 1] : ""
 }
 
 function onPageChange(p: number) {
@@ -132,15 +144,54 @@ const dlgUser = reactive({
   role: "user",
   password: "",
 })
-const regionCascade = ref<string[]>([])
+// 弹窗区域：地市 + 区县两级下拉（区县可不选 = 市本级账号；派出所随区县加载）
+const dlgCity = ref("")
+const dlgDistrict = ref("")
 const formStations = ref<Station[]>([])
+
+const dlgDistrictOptions = computed<RegionNode[]>(() =>
+  dlgCity.value
+    ? cityOptions.value.find((c) => c.code === dlgCity.value)?.children ?? []
+    : [])
+
+function syncDlgRegion() {
+  dlgUser.regionCode = dlgDistrict.value || dlgCity.value
+}
+
+function onDlgCityChange() {
+  dlgDistrict.value = ""
+  formStations.value = []
+  syncDlgRegion()
+}
+
+function onDlgDistrictChange() {
+  formStations.value = []
+  syncDlgRegion()
+  if (dlgDistrict.value) void loadFormStations(dlgDistrict.value)
+}
+
+/** 编辑回填：区县码 → 市+县；市码 → 仅市（市级账号） */
+function fillDlgRegion(code: string) {
+  dlgCity.value = ""
+  dlgDistrict.value = ""
+  if (code) {
+    const city = cityOptions.value.find(
+      (c) => c.code === code || c.children.some((d) => d.code === code),
+    )
+    if (city) {
+      dlgCity.value = city.code
+      if (code !== city.code) dlgDistrict.value = code
+    }
+  }
+  syncDlgRegion()
+}
 
 function openCreate() {
   Object.assign(dlgUser, {
     visible: true, editing: false, id: 0, phone: "", real_name: "",
     regionCode: "", policeStation: "", role: "user", password: "",
   })
-  regionCascade.value = []
+  fillDlgRegion("")
   formStations.value = []
 }
 
@@ -149,19 +200,13 @@ function openEdit(u: UserItem) {
     visible: true, editing: true, id: u.id, phone: u.phone, real_name: u.real_name,
     regionCode: u.region_code, policeStation: u.police_station, role: u.role, password: "",
   })
-  regionCascade.value = []
+  fillDlgRegion(u.region_code)
   formStations.value = []
   if (u.region_code) void loadFormStations(u.region_code)
 }
 
 async function loadFormStations(regionCode: string) {
   formStations.value = await api.get<Station[]>(`/police_stations/by-region/${regionCode}`)
-}
-
-function onRegionCascadeChange(val: string[]) {
-  dlgUser.regionCode = val.length ? val[val.length - 1] : ""
-  formStations.value = []
-  if (dlgUser.regionCode) void loadFormStations(dlgUser.regionCode)
 }
 
 async function submitUser() {
@@ -247,7 +292,7 @@ async function doExport() {
     real_name: filters.real_name || undefined,
     phone: filters.phone || undefined,
     role: filters.role || undefined,
-    region_code: filters.regionCode || undefined,
+    region_code: filterRegionCode.value || undefined,
     station: filters.station || undefined,
   })
   saveBlob(blob, "users_export.xlsx")
@@ -344,15 +389,24 @@ onMounted(() => {
         <el-option label="管理员" value="admin" />
         <el-option label="超级管理员" value="super_admin" />
       </el-select>
-      <el-cascader
-        v-model="regionCascadeFilter"
-        :options="regionTree"
-        :props="{ value: 'code', label: 'name', children: 'children', checkStrictly: true, emitPath: true }"
-        placeholder="全部区域"
+      <el-select
+        v-model="filterCity"
+        placeholder="全部地市"
         clearable
-        style="width: 180px"
-        @change="onFilterRegionChange"
-      />
+        style="width: 140px"
+        @change="onFilterCityChange"
+      >
+        <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
+      </el-select>
+      <el-select
+        v-model="filterDistrict"
+        placeholder="全部区县"
+        clearable
+        :disabled="!filterCity"
+        style="width: 140px"
+      >
+        <el-option v-for="d in filterDistrictOptions" :key="d.code" :label="d.name" :value="d.code" />
+      </el-select>
       <el-select v-model="filters.station" placeholder="全部单位" clearable filterable style="width: 180px">
         <el-option v-for="s in allStations" :key="s.code" :label="s.name" :value="s.name" />
       </el-select>
@@ -430,14 +484,27 @@ onMounted(() => {
       <div class="zp-form-row">
         <div class="zp-field">
           <label>区域<span class="req">*</span></label>
-          <el-cascader
-            v-model="regionCascade"
-            :options="regionTree"
-            :props="{ value: 'code', label: 'name', children: 'children', checkStrictly: true, emitPath: true }"
-            placeholder="选择区域"
-            style="width: 100%"
-            @change="onRegionCascadeChange"
-          />
+          <div class="zp-flex" style="gap: 8px">
+            <el-select
+              v-model="dlgCity"
+              placeholder="选择地市"
+              clearable
+              style="flex: 1"
+              @change="onDlgCityChange"
+            >
+              <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
+            </el-select>
+            <el-select
+              v-model="dlgDistrict"
+              placeholder="区县（可不选）"
+              clearable
+              :disabled="!dlgCity"
+              style="flex: 1"
+              @change="onDlgDistrictChange"
+            >
+              <el-option v-for="d in dlgDistrictOptions" :key="d.code" :label="d.name" :value="d.code" />
+            </el-select>
+          </div>
         </div>
         <div class="zp-field">
           <label>所属派出所</label>

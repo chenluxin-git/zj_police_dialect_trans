@@ -67,14 +67,20 @@ function remaining(task: TaskProgress) {
   return Math.max(0, task.target_count - task.done)
 }
 
-const CATEGORY_TAG: Record<string, string> = {
-  警情: "zp-tag--blue",
-  生活: "zp-tag--green",
-  日常: "zp-tag--green",
+const CATEGORY: Record<string, { label: string; cls: string }> = {
+  police: { label: "警情", cls: "zp-tag--blue" },
+  life: { label: "生活", cls: "zp-tag--green" },
+  dirty: { label: "俚语", cls: "zp-tag--warn" },
+  place: { label: "地名", cls: "zp-tag--gold" },
+  custom: { label: "自定义", cls: "zp-tag--gray" },
 }
 
 function categoryTag(category: string) {
-  return CATEGORY_TAG[category] || "zp-tag--gray"
+  return CATEGORY[category]?.cls || "zp-tag--gray"
+}
+
+function categoryLabel(category: string) {
+  return CATEGORY[category]?.label || "其他"
 }
 
 function pad(n: number) {
@@ -206,8 +212,8 @@ onMounted(async () => {
         <div class="zp-card-body">
           <ul v-if="recentRecordings.length" class="zp-line-list">
             <li v-for="r in recentRecordings" :key="r.id">
-              <span class="zp-tag" :class="categoryTag(r.category)">{{ r.category || "其他" }}</span>
-              <span class="txt"><em>「{{ r.text_content }}」</em></span>
+              <span class="zp-tag" :class="categoryTag(r.category)">{{ categoryLabel(r.category) }}</span>
+              <span class="txt">{{ r.text_content }}</span>
               <span class="time">{{ fmtShort(r.created_at) }}</span>
             </li>
           </ul>
@@ -216,7 +222,7 @@ onMounted(async () => {
       </div>
       <div class="zp-card">
         <div class="zp-card-head"><h2>最新消息</h2><router-link class="zp-btn zp-btn--text" to="/messages">全部</router-link></div>
-        <div class="zp-card-body zp-card-body--flush" style="margin:-20px">
+        <div class="zp-card-body zp-card-body--flush">
           <div v-if="latestMessages.length">
             <div v-for="m in latestMessages" :key="m.id" class="zp-msg-item" :class="{ 'is-unread': !m.read }">
               <span class="zp-tag" :class="messageTag(m.title).cls">{{ messageTag(m.title).label }}</span>

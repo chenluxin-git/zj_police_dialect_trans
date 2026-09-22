@@ -123,19 +123,6 @@ a:hover{color:var(--navy-700)}
   background:var(--navy-800);color:#fff;border-left-color:var(--gold-500);
 }
 .zp-menu a .zp-dot-badge{margin-left:auto}
-.zp-side-user{
-  border-top:1px solid rgba(255,255,255,.08);
-  padding:12px 16px;display:flex;align-items:center;gap:10px;
-}
-.zp-side-user .zp-avatar{flex:none}
-.zp-side-user dl{line-height:1.4;min-width:0}
-.zp-side-user dt{color:#fff;font-size:13px}
-.zp-side-user dd{color:#7E93B4;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.zp-side-user .zp-exit{
-  margin-left:auto;color:#7E93B4;font-size:12px;background:none;border:none;cursor:pointer;
-  padding:4px 6px;border-radius:4px;
-}
-.zp-side-user .zp-exit:hover{color:#fff;background:rgba(255,255,255,.08)}
 
 /* 头像 */
 .zp-avatar{
@@ -168,7 +155,11 @@ a:hover{color:var(--navy-700)}
   line-height:15px;font-size:10px;padding:0 4px;
 }
 .zp-topbar-user{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
-.zp-topbar-user .role{color:var(--ink-3)}
+.zp-topbar-user .zp-exit{
+  margin-left:4px;font-size:12px;color:var(--ink-3);background:none;
+  border:1px solid var(--line);cursor:pointer;padding:4px 12px;border-radius:6px;
+}
+.zp-topbar-user .zp-exit:hover{color:var(--danger);border-color:var(--danger)}
 .zp-vline{width:1px;height:18px;background:var(--line)}
 
 /* 内容区 */
@@ -425,9 +416,9 @@ a:hover{color:var(--navy-700)}
 
 /* ============ 业务组件 ============ */
 
-/* 方言文本展示（宋体材质） */
+/* 方言文本展示（正常字体、黑色） */
 .zp-dialect{
-  font-family:var(--serif);font-size:22px;line-height:1.7;color:var(--navy-900);
+  font-size:22px;line-height:1.7;color:var(--ink);
 }
 .zp-dialect--sm{font-size:16px}
 
@@ -576,7 +567,6 @@ a:hover{color:var(--navy-700)}
   flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--ink);
 }
-.zp-line-list .txt em{font-style:normal;font-family:var(--serif)}
 .zp-line-list .time{color:var(--ink-3);flex:none;font-size:12px}
 
 /* ============ 工具类 ============ */

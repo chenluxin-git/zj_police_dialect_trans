@@ -84,7 +84,22 @@ const ownCode = computed(() => userStore.user?.region_code || "")
 const loading = ref(false)
 const overview = ref<Overview | null>(null)
 const regionTree = ref<RegionNode[]>([])
-const cascadeValue = ref<string[]>([])
+
+// 区域筛选：地市 + 区县两级下拉，地市选定后区县才可选；「确定」后才重新加载
+const cityCode = ref("")
+const districtCode = ref("")
+
+const cityOptions = computed<RegionNode[]>(() =>
+  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
+
+const districtOptions = computed<RegionNode[]>(() =>
+  cityCode.value
+    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
+    : [])
+
+function onCityChange() {
+  districtCode.value = ""
+}
 
 // 三级展开状态：expanded 已展开行码；childCache 行码→子行（区县行或派出所行）；childLoading 加载中
 const expanded = ref<Set<string>>(new Set())
@@ -164,16 +179,14 @@ async function load() {
   try {
     expanded.value = new Set()
     childCache.value = new Map()
-    const code = cascadeValue.value.length
-      ? cascadeValue.value[cascadeValue.value.length - 1]
-      : undefined
+    const code = districtCode.value || cityCode.value || undefined
     overview.value = await getOverview(code)
   } finally {
     loading.value = false
   }
 }
 
-function onRegionChange() {
+function onConfirm() {
   void load()
 }
 
@@ -189,15 +202,25 @@ onMounted(async () => {
       <h1>数据总览</h1>
       <span class="sub">辖区数据汇总 · 数据范围随管理员层级自动限定</span>
       <div v-if="isSuper" class="zp-head-actions">
-        <el-cascader
-          v-model="cascadeValue"
-          :options="regionTree"
-          :props="{ value: 'code', label: 'name', children: 'children', checkStrictly: true, emitPath: true }"
-          placeholder="全部区域（点击下钻）"
+        <el-select
+          v-model="cityCode"
+          placeholder="全部地市"
           clearable
-          style="width: 260px"
-          @change="onRegionChange"
-        />
+          style="width: 150px"
+          @change="onCityChange"
+        >
+          <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
+        </el-select>
+        <el-select
+          v-model="districtCode"
+          placeholder="全部区县"
+          clearable
+          :disabled="!cityCode"
+          style="width: 150px"
+        >
+          <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
+        </el-select>
+        <button class="zp-btn zp-btn--primary" type="button" @click="onConfirm">确定</button>
       </div>
     </div>
 

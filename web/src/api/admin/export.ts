@@ -55,7 +55,6 @@ export interface AdminAnnotation {
   file_id: number
   annotator_id: number
   annotator_name: string
-  is_dialect: boolean
   translation: string | null
   region_code: string
   file_name: string
@@ -71,7 +70,6 @@ export interface AdminAnnotationPage {
 
 export interface AdminAnnotationQuery {
   region?: string
-  is_dialect?: boolean
   q?: string
   page?: number
   page_size?: number

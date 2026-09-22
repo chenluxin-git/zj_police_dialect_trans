@@ -15,7 +15,6 @@ router = APIRouter(prefix="/annotations", tags=["管理端-标注管理"])
 @router.get("")
 def list_annotations(
     region: str | None = Query(None),
-    is_dialect: bool | None = Query(None),
     q: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
@@ -31,8 +30,6 @@ def list_annotations(
     )
     if region:
         query = query.filter(Annotation.region_code == region)
-    if is_dialect is not None:
-        query = query.filter(Annotation.is_dialect == is_dialect)
     if q:
         query = query.filter(Annotation.translation.like(f"%{q}%"))
 
@@ -46,7 +43,6 @@ def list_annotations(
             "file_id": ann.file_id,
             "annotator_id": ann.annotator_id,
             "annotator_name": user.real_name if user else "",
-            "is_dialect": ann.is_dialect,
             "translation": ann.translation,
             "region_code": ann.region_code,
             "file_name": af.file_name if af else "",

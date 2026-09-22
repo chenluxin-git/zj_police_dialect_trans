@@ -23,7 +23,7 @@ const CAT_TAG: Record<string, string> = {
   custom: "zp-tag--gray",
 }
 const catLabel = (c: string) =>
-  ({ police: "警情", life: "生活", dirty: "脏话", place: "地名", custom: "自定义" }[c] || c)
+  ({ police: "警情", life: "生活", dirty: "俚语", place: "地名", custom: "自定义" }[c] || c)
 
 const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   pending: { label: "排队中", cls: "zp-tag--gray" },
@@ -165,7 +165,7 @@ onMounted(async () => {
           {{ fmtDateTime(detail.created_at) }} 导入 · 样本（前 {{ detail.sample_texts.length }} 条）：
         </p>
         <ul class="zp-line-list" v-if="detail.sample_texts.length">
-          <li v-for="(s, i) in detail.sample_texts" :key="i"><span class="txt"><em>「{{ s }}」</em></span></li>
+          <li v-for="(s, i) in detail.sample_texts" :key="i"><span class="txt">{{ s }}</span></li>
         </ul>
         <p v-else class="zp-text-3">暂无样本</p>
       </div>

@@ -105,14 +105,6 @@ function goMessages() {
           </router-link>
         </div>
       </nav>
-      <div class="zp-side-user">
-        <span class="zp-avatar" :class="{ 'zp-avatar--gold': userStore.isAdmin }">{{ avatarChar }}</span>
-        <dl>
-          <dt>{{ userStore.user?.real_name || "未登录" }}</dt>
-          <dd>{{ userStore.roleLabel }}</dd>
-        </dl>
-        <button class="zp-exit" type="button" @click="userStore.logout()">退出</button>
-      </div>
     </aside>
 
     <div class="zp-main">
@@ -138,7 +130,7 @@ function goMessages() {
             <span class="zp-avatar" :class="{ 'zp-avatar--gold': userStore.isAdmin }"
               style="width:30px;height:30px;font-size:12px">{{ avatarChar }}</span>
             {{ userStore.user?.real_name || "" }}
-            <span class="role">{{ userStore.roleLabel }}</span>
+            <button class="zp-exit" type="button" @click="userStore.logout()">退出</button>
           </div>
         </div>
       </header>

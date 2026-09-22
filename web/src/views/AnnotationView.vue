@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 录音标注（dome/annotation.html 1:1）：任务进度 + 领取音频（180s 锁倒计时 + 续期）
- * + AudioPlayer 试听 + 是否方言分段控件 + 译文必填 + 提交后自动下一条
+ * + AudioPlayer 试听 + 译文必填 + 提交后自动下一条（已取消是否方言判定）
  */
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import { ElMessage } from "element-plus"
@@ -18,7 +18,6 @@ const LOCK_SECONDS = 180
 
 const task = ref<TaskProgress | null>(null)
 const audioItem = ref<NextAudio | null>(null)
-const isDialect = ref(true)
 const translation = ref("")
 const submitting = ref(false)
 const countdown = ref(LOCK_SECONDS)
@@ -73,7 +72,6 @@ async function loadNext() {
   try {
     const a = await nextAudio()
     audioItem.value = a
-    isDialect.value = true
     translation.value = ""
     startCountdown(LOCK_SECONDS)
   } catch {
@@ -91,16 +89,15 @@ async function refresh() {
 
 async function submit() {
   if (!audioItem.value) return
-  if (isDialect.value && !translation.value.trim()) {
-    ElMessage.warning("判定为方言时需填写普通话翻译")
+  if (!translation.value.trim()) {
+    ElMessage.warning("请填写普通话翻译")
     return
   }
   submitting.value = true
   try {
     await submitAnnotation({
       file_id: audioItem.value.file_id,
-      is_dialect: isDialect.value,
-      translation: isDialect.value ? translation.value.trim() : "",
+      translation: translation.value.trim(),
     })
     ElMessage.success("标注已提交，自动领取下一条")
     void loadTask()
@@ -120,7 +117,7 @@ onUnmounted(() => stopCountdown())
 <template>
   <div class="zp-page-head">
     <h1>录音标注</h1>
-    <span class="sub">听音频，判断是否为方言，并翻译成普通话</span>
+    <span class="sub">听音频，并将内容翻译成普通话</span>
   </div>
 
   <!-- 我的任务进度 -->
@@ -167,20 +164,13 @@ onUnmounted(() => stopCountdown())
     <div class="zp-card-head"><h2>标注结果</h2></div>
     <div class="zp-card-body">
       <div class="zp-field">
-        <label>这段音频是否为方言<span class="req">*</span></label>
-        <div class="zp-seg" role="group" aria-label="是否为方言">
-          <button type="button" :class="{ 'is-active': isDialect }" @click="isDialect = true">是方言</button>
-          <button type="button" :class="{ 'is-active': !isDialect }" @click="isDialect = false">不是方言</button>
-        </div>
-      </div>
-      <div class="zp-field">
         <label>普通话翻译<span class="req">*</span></label>
         <textarea
           v-model="translation"
           class="zp-textarea"
           placeholder="请输入这段音频对应的普通话意思"
         ></textarea>
-        <p class="zp-hint">判定为「是方言」时必填；判定为「不是方言」时无需填写</p>
+        <p class="zp-hint">请完整听完音频后填写</p>
       </div>
       <button
         class="zp-btn zp-btn--primary zp-btn--lg zp-btn--block"
@@ -195,7 +185,7 @@ onUnmounted(() => stopCountdown())
 
   <div class="zp-alert zp-alert--info">
     <span>
-      标注提示：请完整听完音频再判定；方言指与普通话差异明显的本地方言口音及用语；同一段音频只需标注一次。
+      标注提示：请完整听完音频再翻译；译文需与音频内容一致；同一段音频只需标注一次。
     </span>
   </div>
 </template>

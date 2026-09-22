@@ -85,8 +85,13 @@ async function submit() {
 
       <p class="zp-center zp-mt-16 zp-text-3">还没有账号？<router-link to="/register">注册新账号</router-link></p>
 
-      <div class="zp-alert zp-alert--info zp-mt-24" style="font-size:12px">
-        <span>演示账号：33000000001 超级管理员 ／ 33100400001 区县管理员 ／ 33100400002 民警，密码均为 123456</span>
+      <div class="zp-alert zp-alert--info zp-mt-24" style="font-size:12px; line-height: 1.9">
+        <span>
+          演示账号（密码均为 123456）：<br />
+          33000000001 超级管理员 ／ 33100000001 市级管理员（台州）／ 33010000001 市级管理员（杭州）<br />
+          33100400001 区县管理员（路桥）／ 33102400001 区县管理员（仙居）<br />
+          33100400002 民警（路桥）／ 33100400003 民警（路桥）／ 33102400002 民警（仙居）
+        </span>
       </div>
     </section>
   </main>

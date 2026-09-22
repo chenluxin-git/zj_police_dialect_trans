@@ -13,13 +13,21 @@ import {
   type AudioScanPoll,
   type RegionItem,
 } from "@/api/admin/texts"
+import { api } from "@/api/http"
+
+interface RegionNode {
+  code: string
+  name: string
+  level: string
+  children: RegionNode[]
+}
 
 const userStore = useUserStore()
 
 const regions = ref<RegionItem[]>([])
+const regionTree = ref<RegionNode[]>([])
 const serverPath = ref("")
 const recursive = ref(true)
-const regionCode = ref("")
 
 // 规格裁定 2026-09-22：导入强制落区县级（用户领取为精确匹配，市/省级归属成死数据）
 // 区县管理员默认本辖区（后端自动）；市管限本市下辖区县、省管/超管全省区县，必选
@@ -27,11 +35,37 @@ const ownRegion = computed(() =>
   regions.value.find((r) => r.code === userStore.user?.region_code))
 const needDistrictPick = computed(() =>
   regions.value.length > 0 && ownRegion.value?.level !== "district")
-const districtOptions = computed(() => {
-  const districts = regions.value.filter((r) => r.level === "district")
+
+// 归属区域（地市 + 区县两级下拉，地市选定后区县才可选，须选到区县）：市管锁定本市；省管/超管全省
+const cityCode = ref("")
+const districtCode = ref("")
+
+function findNode(nodes: RegionNode[], code: string): RegionNode | null {
+  for (const n of nodes) {
+    if (n.code === code) return n
+    const hit = findNode(n.children, code)
+    if (hit) return hit
+  }
+  return null
+}
+
+const cityOptions = computed<RegionNode[]>(() => {
   const own = ownRegion.value
-  return own?.level === "city" ? districts.filter((r) => r.parent_code === own.code) : districts
+  if (own?.level === "city") {
+    const ownCity = findNode(regionTree.value, own.code)
+    return ownCity ? [ownCity] : []
+  }
+  return regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r]))
 })
+
+const districtOptions = computed<RegionNode[]>(() =>
+  cityCode.value
+    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
+    : [])
+
+function onCityChange() {
+  districtCode.value = ""
+}
 
 const scanning = ref(false)
 const task = ref<AudioScanPoll | null>(null)
@@ -55,6 +89,14 @@ async function loadRegions() {
     regions.value = await listRegions()
   } catch {
     /* 错误已由 http 拦截器提示 */
+  }
+  if (needDistrictPick.value) {
+    try {
+      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
+      if (cityOptions.value.length === 1) cityCode.value = cityOptions.value[0].code // 市管自动锁定本市
+    } catch {
+      /* 错误已由 http 拦截器提示 */
+    }
   }
 }
 
@@ -93,8 +135,8 @@ async function startScan() {
     ElMessage.warning("请输入服务器文件夹路径")
     return
   }
-  if (needDistrictPick.value && !regionCode.value) {
-    ElMessage.warning("请选择归属区县（市/省级归属的音频县级用户无法领取）")
+  if (needDistrictPick.value && !districtCode.value) {
+    ElMessage.warning("请先选择地市并选定归属区县（市/省级归属的音频县级用户无法领取）")
     return
   }
   scanning.value = true
@@ -103,7 +145,7 @@ async function startScan() {
     const data = await startAudioScan({
       server_path: serverPath.value.trim(),
       recursive: recursive.value,
-      region_code: regionCode.value || undefined,
+      region_code: districtCode.value || undefined,
     })
     pollTask(data.task_id)
   } catch {
@@ -138,10 +180,16 @@ onUnmounted(clearTimer)
           </label>
           <div style="flex: 1">
             <label style="display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px">归属区域<span class="req">*</span></label>
-            <select v-if="needDistrictPick" class="zp-select" v-model="regionCode" aria-label="归属区域">
-              <option value="">请选择区县</option>
-              <option v-for="r in districtOptions" :key="r.code" :value="r.code">{{ r.name }}</option>
-            </select>
+            <div v-if="needDistrictPick" class="zp-flex" style="gap: 8px">
+              <select class="zp-select" v-model="cityCode" aria-label="地市" style="flex: 1" @change="onCityChange">
+                <option value="">选择地市</option>
+                <option v-for="c in cityOptions" :key="c.code" :value="c.code">{{ c.name }}</option>
+              </select>
+              <select class="zp-select" v-model="districtCode" aria-label="区县" style="flex: 1" :disabled="!cityCode">
+                <option value="">选择区县</option>
+                <option v-for="d in districtOptions" :key="d.code" :value="d.code">{{ d.name }}</option>
+              </select>
+            </div>
             <input v-else class="zp-input" :value="ownRegionName" disabled />
           </div>
         </div>

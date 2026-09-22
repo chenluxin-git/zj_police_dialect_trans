@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用户管理 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .zp-dropzone{
+    border:1.5px dashed var(--line-strong);border-radius:var(--radius-lg);
+    padding:28px 16px;text-align:center;color:var(--ink-3);font-size:13px;
+  }
+  .zp-dropzone b{color:var(--navy-700)}
+</style>
+</head>
+<body data-page="admin-users">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>用户管理</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>用户管理</h1>
+        <span class="sub">辖区用户台账 · 数据范围随层级自动限定</span>
+        <div class="zp-head-actions">
+          <button class="zp-btn zp-btn--ghost" data-toast="演示：Excel 报表生成中">导出 Excel</button>
+          <button class="zp-btn zp-btn--gold" data-open="#dlgImport">批量导入</button>
+          <button class="zp-btn zp-btn--primary" data-open="#dlgUser">新增用户</button>
+        </div>
+      </div>
+
+      <!-- 筛选栏 -->
+      <div class="zp-filter">
+        <select class="zp-select" aria-label="角色">
+          <option>全部角色</option><option>民警</option><option>管理员</option><option>超级管理员</option>
+        </select>
+        <select class="zp-select" aria-label="单位">
+          <option>全部单位</option><option selected>××派出所</option><option>杜桥派出所</option><option>桃渚派出所</option>
+        </select>
+        <input class="zp-input" placeholder="姓名 / 手机号" aria-label="姓名或手机号">
+        <button class="zp-btn zp-btn--primary">查询</button>
+        <button class="zp-btn zp-btn--ghost">重置</button>
+      </div>
+
+      <!-- 用户列表 -->
+      <div class="zp-card">
+        <div class="zp-table-wrap">
+          <table class="zp-table">
+            <thead>
+              <tr>
+                <th>姓名</th><th>手机号</th><th>角色</th><th>区域</th><th>单位</th>
+                <th>录音数</th><th>有效标注</th><th>注册时间</th><th class="zp-text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>临海民警01</b></td><td class="num">33100400002</td>
+                <td><span class="zp-tag zp-tag--gray">民警</span></td>
+                <td>临海市</td><td>××派出所</td>
+                <td class="num">36</td><td class="num">24</td><td class="num">09-01</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgUser">编辑</button>
+                  <button class="zp-btn zp-btn--text" data-open="#dlgPwd">重置密码</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>临海民警02</b></td><td class="num">33100400003</td>
+                <td><span class="zp-tag zp-tag--gray">民警</span></td>
+                <td>临海市</td><td>××派出所</td>
+                <td class="num">58</td><td class="num">50</td><td class="num">09-01</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgUser">编辑</button>
+                  <button class="zp-btn zp-btn--text" data-open="#dlgPwd">重置密码</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>王警官</b></td><td class="num">13905810002</td>
+                <td><span class="zp-tag zp-tag--gray">民警</span></td>
+                <td>临海市</td><td>桃渚派出所</td>
+                <td class="num">112</td><td class="num">88</td><td class="num">09-02</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgUser">编辑</button>
+                  <button class="zp-btn zp-btn--text" data-open="#dlgPwd">重置密码</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>李警官</b></td><td class="num">13905810003</td>
+                <td><span class="zp-tag zp-tag--gray">民警</span></td>
+                <td>临海市</td><td>上盘派出所</td>
+                <td class="num">12</td><td class="num">6</td><td class="num">09-03</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgUser">编辑</button>
+                  <button class="zp-btn zp-btn--text" data-open="#dlgPwd">重置密码</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>临海管理员</b></td><td class="num">33100400001</td>
+                <td><span class="zp-tag zp-tag--blue">区县管理员</span></td>
+                <td>临海市</td><td>临海市公安局</td>
+                <td class="num">0</td><td class="num">0</td><td class="num">09-01</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgUser">编辑</button>
+                  <button class="zp-btn zp-btn--text" data-open="#dlgPwd">重置密码</button>
+                </td>
+              </tr>
+              <tr style="opacity:.7">
+                <td><b>台州管理员</b></td><td class="num">33100000001</td>
+                <td><span class="zp-tag zp-tag--blue">市级管理员</span></td>
+                <td>台州市</td><td>台州市公安局</td>
+                <td class="num">0</td><td class="num">0</td><td class="num">09-01</td>
+                <td class="zp-text-right"><span class="zp-text-3">上级管辖，仅可见</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="zp-pagination" style="padding:14px 20px">
+          <span class="total">辖区共 282 人</span>
+          <button>上一页</button><button class="is-active">1</button><button>2</button><button>…</button><button>24</button><button>下一页</button>
+        </div>
+      </div>
+
+      <div class="zp-alert zp-alert--info zp-mt-16">
+        <span>说明：有录音的用户不可删除；区县管理员仅可管理本辖区用户，超级管理员可管理全省并创建各级管理员。</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 新增 / 编辑用户 -->
+<div class="zp-dialog-mask" id="dlgUser">
+  <div class="zp-dialog" role="dialog" aria-label="用户编辑" style="max-width:560px">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>编辑用户</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>手机号<span class="req">*</span></label>
+          <input class="zp-input" value="33100400002" disabled>
+        </div>
+        <div class="zp-field">
+          <label>姓名<span class="req">*</span></label>
+          <input class="zp-input" value="临海民警01">
+        </div>
+      </div>
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>地市<span class="req">*</span></label>
+          <select class="zp-select"><option selected>台州市</option></select>
+        </div>
+        <div class="zp-field">
+          <label>区县<span class="req">*</span></label>
+          <select class="zp-select"><option selected>临海市</option><option>仙居县</option></select>
+        </div>
+      </div>
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>所属派出所<span class="req">*</span></label>
+          <select class="zp-select"><option selected>××派出所</option><option>杜桥派出所</option></select>
+        </div>
+        <div class="zp-field">
+          <label>角色<span class="req">*</span></label>
+          <select class="zp-select"><option selected>民警</option><option>管理员（管辖范围由所属区域层级决定）</option></select>
+        </div>
+      </div>
+      <div class="zp-field" style="margin-bottom:0">
+        <label>重置密码</label>
+        <input class="zp-input" type="password" placeholder="留空表示不修改">
+      </div>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：用户信息已保存">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量导入 -->
+<div class="zp-dialog-mask" id="dlgImport">
+  <div class="zp-dialog" role="dialog" aria-label="批量导入" style="max-width:560px">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>批量导入用户</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p class="zp-hint" style="margin-bottom:12px">
+        第一步：下载 <a href="javascript:void(0)" data-toast="演示：模板下载中">Excel 模板</a>（手机号 / 姓名 / 地市 / 区县 / 派出所 / 角色）
+      </p>
+      <div class="zp-dropzone zp-mb-16">
+        <b>点击选择或拖入 .xlsx 文件</b><br>
+        第二步：上传名单，逐行校验后导入；初始密码为手机号后 6 位
+      </div>
+      <div class="zp-alert zp-alert--ok">
+        <span>最近一次导入：新增 25 人 · 跳过 2 人（手机号已存在：13905810999、13905810888）</span>
+      </div>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>关闭</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：导入完成，成功 25 / 失败 2">开始导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重置密码 -->
+<div class="zp-dialog-mask" id="dlgPwd">
+  <div class="zp-dialog" role="alertdialog" aria-label="重置密码">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>重置密码</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p>确定将 <b>临海民警01（33100400002）</b> 的密码重置为初始密码吗？</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：密码已重置">确认重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除用户 -->
+<div class="zp-dialog-mask" id="dlgDel">
+  <div class="zp-dialog" role="alertdialog" aria-label="删除用户">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>删除用户</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p>确定删除 <b>李警官（13905810003）</b> 吗？其名下 12 条录音将一并删除且无法恢复。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--danger" data-close data-toast="演示：用户已删除">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

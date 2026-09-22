@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>消息发送 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="admin-message-send">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>消息发送</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>消息发送</h1>
+        <span class="sub">向辖区用户发送站内消息，支持单人、按区域、按单位群发</span>
+      </div>
+
+      <div class="zp-grid-2">
+        <!-- 发送表单 -->
+        <div class="zp-card">
+          <div class="zp-card-head"><h2>编写消息</h2></div>
+          <div class="zp-card-body">
+            <div class="zp-field">
+              <label>发送方式<span class="req">*</span></label>
+              <div class="zp-seg" role="group">
+                <button class="is-active" type="button">按人员</button>
+                <button type="button">按区域</button>
+                <button type="button">按单位</button>
+              </div>
+            </div>
+            <div class="zp-field">
+              <label>选择收件人<span class="req">*</span></label>
+              <select class="zp-select">
+                <option>请搜索姓名 / 手机号（可多选）</option>
+                <option selected>临海民警01 · ××派出所 · 33100400002</option>
+              </select>
+              <p class="zp-hint">已选 1 人；「按区域」将群发给所选区域全部用户，「按单位」按派出所群发</p>
+            </div>
+            <div class="zp-field">
+              <label>消息类型<span class="req">*</span></label>
+              <select class="zp-select"><option selected>通知</option><option>公告</option><option>任务</option></select>
+            </div>
+            <div class="zp-field">
+              <label>标题<span class="req">*</span></label>
+              <input class="zp-input" value="关于开展方言录音集中采集周活动的通知">
+            </div>
+            <div class="zp-field">
+              <label>内容<span class="req">*</span></label>
+              <textarea class="zp-textarea" placeholder="请输入消息内容">定于 9 月 25 日至 30 日开展方言录音集中采集周活动，请各位民警在完成日常任务的基础上，重点录制警情类文本。有疑问请联系本级管理员。</textarea>
+            </div>
+            <button class="zp-btn zp-btn--primary zp-btn--lg zp-btn--block" data-toast="演示：已发送给 1 人">发送消息</button>
+          </div>
+        </div>
+
+        <!-- 已发送记录 -->
+        <div class="zp-card">
+          <div class="zp-card-head"><h2>已发送记录</h2><span class="zp-card-sub">近 30 天</span></div>
+          <div class="zp-card-body zp-card-body--flush" style="margin:-20px">
+            <div class="zp-msg-item">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>新任务通知</h4><p>发送给 3 人 · 已读 2</p></div>
+              <span class="time">09-18 14:30</span>
+            </div>
+            <div class="zp-msg-item">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>录音质量提醒</h4><p>发送给临海市 282 人 · 已读 196</p></div>
+              <span class="time">09-17 09:10</span>
+            </div>
+            <div class="zp-msg-item">
+              <span class="zp-tag zp-tag--gold">公告</span>
+              <div style="min-width:0;flex:1"><h4>平台试运行公告</h4><p>发送给临海市 282 人 · 已读 244</p></div>
+              <span class="time">09-16 09:00</span>
+            </div>
+            <div class="zp-msg-item">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>系统维护通知</h4><p>发送给临海市 282 人 · 已读 251</p></div>
+              <span class="time">09-11 18:00</span>
+            </div>
+          </div>
+          <div class="zp-pagination" style="padding:14px 20px">
+            <span class="total">共 8 条</span>
+            <button>上一页</button><button class="is-active">1</button><button>2</button><button>下一页</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

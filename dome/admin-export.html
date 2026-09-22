@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据集导出 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .zp-table input[type="checkbox"]{width:16px;height:16px;accent-color:var(--navy-700)}
+</style>
+</head>
+<body data-page="admin-export">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>数据集导出</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>数据集导出</h1>
+        <span class="sub">筛选语料生成训练集 ZIP（音频 + 文本清单），下载后文件即焚</span>
+      </div>
+
+      <!-- 筛选条件 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>筛选条件</h2></div>
+        <div class="zp-card-body">
+          <div class="zp-filter" style="margin-bottom:0">
+            <select class="zp-select" aria-label="数据类型">
+              <option>全部类型</option><option selected>采集录音</option><option>已判方言标注音频</option>
+            </select>
+            <select class="zp-select" aria-label="类别">
+              <option>全部类别</option><option selected>警情</option><option>生活</option><option>地名</option>
+            </select>
+            <input class="zp-input" type="date" value="2026-09-01" aria-label="开始日期">
+            <span class="zp-text-3">至</span>
+            <input class="zp-input" type="date" value="2026-09-21" aria-label="结束日期">
+            <button class="zp-btn zp-btn--primary">查询清单</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 可导出清单 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head">
+          <h2>可导出清单</h2>
+          <span class="zp-card-sub">共 1,124 条 · 已选 2 条</span>
+          <div class="zp-head-actions">
+            <button class="zp-btn zp-btn--ghost" data-toast="演示：按当前条件打包全部 1,124 条（后台任务）">导出全部</button>
+            <button class="zp-btn zp-btn--primary" data-toast="演示：已开始打包所选 2 条（后台任务）">导出所选</button>
+          </div>
+        </div>
+        <div class="zp-table-wrap">
+          <table class="zp-table">
+            <thead>
+              <tr>
+                <th style="width:36px"></th><th>类型</th><th style="width:38%">文本内容 / 普通话翻译</th>
+                <th>区域</th><th>时长</th><th>时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" checked></td>
+                <td><span class="zp-tag zp-tag--blue">采集录音</span></td>
+                <td><em class="zp-serif">「你们不要吵了，都先坐下来，有话好好讲。」</em></td>
+                <td>临海市</td><td class="num">00:18</td><td class="num">09-21 10:24</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" checked></td>
+                <td><span class="zp-tag zp-tag--green">标注音频</span></td>
+                <td><em class="zp-serif">「下雨了，衣服要收起来了。」</em></td>
+                <td>临海市</td><td class="num">00:12</td><td class="num">09-21 11:02</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><span class="zp-tag zp-tag--blue">采集录音</span></td>
+                <td><em class="zp-serif">「我是社区民警，麻烦开下门。」</em></td>
+                <td>临海市</td><td class="num">00:06</td><td class="num">09-20 16:47</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox"></td>
+                <td><span class="zp-tag zp-tag--green">标注音频</span></td>
+                <td><em class="zp-serif">「路口堵住了，让车挪一挪。」</em></td>
+                <td>临海市</td><td class="num">00:08</td><td class="num">09-20 14:36</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="zp-pagination" style="padding:14px 20px">
+          <span class="total">共 1,124 条</span>
+          <button>上一页</button><button class="is-active">1</button><button>2</button><button>…</button><button>113</button><button>下一页</button>
+        </div>
+      </div>
+
+      <!-- 导出任务 -->
+      <div class="zp-card">
+        <div class="zp-card-head"><h2>导出任务</h2><span class="zp-card-sub">打包完成后请及时下载</span></div>
+        <div class="zp-card-body">
+          <div class="zp-flex zp-mb-16">
+            <span class="zp-tag zp-tag--warn">打包中</span>
+            <div class="zp-progress" style="flex:1">
+              <div class="track"><div class="fill" style="width:60%"></div></div>
+              <span class="num"><b>674</b> / 1,124 条</span>
+            </div>
+            <button class="zp-btn zp-btn--ghost zp-btn--sm" data-toast="演示：刷新任务状态">刷新</button>
+          </div>
+          <div class="zp-flex" style="opacity:.75">
+            <span class="zp-tag zp-tag--green">已完成</span>
+            <span style="flex:1;font-size:13px;color:var(--ink-2)">警情类语料0915.zip（312 条 · 486 MB）</span>
+            <button class="zp-btn zp-btn--primary zp-btn--sm" data-toast="演示：下载开始，完成后临时文件自动清除">下载</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="zp-alert zp-alert--warn zp-mt-16">
+        <span>ZIP 内含音频与 dataset.txt（文本-文件位置对照清单）；导出文件下载后即自动删除，请妥善保管，注意保密。</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页面目录 · 浙江公安方言语料采集平台（演示稿）</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .hub{max-width:1080px;margin:0 auto;padding:48px 24px 64px}
+  .hub-head{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .hub-head svg{width:40px;height:46px;color:var(--navy-700)}
+  .hub-head h1{font-family:var(--serif);font-size:26px;color:var(--navy-900)}
+  .hub-sub{color:var(--ink-3);font-size:13px;margin-bottom:32px}
+  .spec{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  .swatches{display:flex;gap:10px;flex-wrap:wrap}
+  .sw{width:92px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+  .sw i{display:block;height:44px}
+  .sw span{display:block;padding:6px 8px;font-size:11px;color:var(--ink-2);line-height:1.4}
+  .type-demo .zp-dialect{margin:6px 0}
+  .group{margin-top:26px}
+  .group>h2{
+    font-size:14px;color:var(--ink-2);font-weight:600;
+    border-left:3px solid var(--gold-500);padding-left:10px;margin-bottom:12px;
+  }
+  .pages{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .pages a,.pages .todo{
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;display:block;color:var(--ink);
+  }
+  .pages a:hover{border-color:var(--navy-700);box-shadow:var(--shadow-card)}
+  .pages b{display:block;font-size:14px;font-weight:500}
+  .pages span{font-size:12px;color:var(--ink-3)}
+  .pages .todo{opacity:.55}
+  @media(max-width:960px){.spec,.pages{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="hub">
+  <div class="hub-head">
+    <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+      <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+    </svg>
+    <h1>浙江公安方言语料采集平台 · 前端演示稿</h1>
+  </div>
+  <p class="hub-sub">静态设计稿（视觉规格唯一依据）· 2026-09-21 · 逐页确认后按 Element Plus 1:1 落地</p>
+
+  <!-- 设计规格速览 -->
+  <div class="spec">
+    <div class="zp-card">
+      <div class="zp-card-head"><h2>色彩 Token</h2></div>
+      <div class="zp-card-body">
+        <div class="swatches">
+          <div class="sw"><i style="background:#0E2440"></i><span>藏青深 0E2440<br>侧栏 / 身份面板</span></div>
+          <div class="sw"><i style="background:#173C6E"></i><span>警蓝 173C6E<br>主操作 / 选中</span></div>
+          <div class="sw"><i style="background:#2C6BB0"></i><span>亮警蓝 2C6BB0<br>链接 / 悬停</span></div>
+          <div class="sw"><i style="background:#C8A45C"></i><span>警徽金 C8A45C<br>点睛 &lt;5% 面积</span></div>
+          <div class="sw"><i style="background:#F4F6FA;border-bottom:1px solid #DDE4EE"></i><span>纸底 F4F6FA<br>页面背景</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="zp-card">
+      <div class="zp-card-head"><h2>字体规范</h2></div>
+      <div class="zp-card-body type-demo">
+        <p class="zp-dialect" style="font-size:20px">宋体系：页面标题 / 方言文本（机构声明感）</p>
+        <p style="font-size:14px;color:var(--ink-2)">微软雅黑 / 苹方：按钮、表格、表单等全部操作界面</p>
+        <p class="zp-text-3">正文 14 · 辅助 12-13 · 页题 24-28（宋体）· 数字等宽</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页面清单 -->
+  <div class="group">
+    <h2>身份与首页（第一批 · 已出）</h2>
+    <div class="pages">
+      <a href="login.html"><b>登录</b><span>左身份面板 + 右表单，演示账号提示</span></a>
+      <a href="register.html"><b>注册</b><span>手机号 / 区域三级级联 / 派出所</span></a>
+      <a href="home.html"><b>首页</b><span>任务卡进度 + 快捷入口 + 最近动态</span></a>
+      <a href="record.html"><b>录音采集</b><span>领文本 → 录音按钮 → 上传（核心作业页）</span></a>
+    </div>
+  </div>
+
+  <div class="group">
+    <h2>日常作业与消息（第二批 · 已出）</h2>
+    <div class="pages">
+      <a href="my-recordings.html"><b>我的录音</b><span>筛选 / 列表 / 播放下载删除（带确认弹窗）</span></a>
+      <a href="annotation.html"><b>录音标注</b><span>任务进度条 + 听音频 + 是/否方言分段选择 + 译文</span></a>
+      <a href="my-annotations.html"><b>我的标注</b><span>筛选 / 修改弹窗（重听+改判定） / 删除</span></a>
+      <a href="messages.html"><b>我的消息</b><span>全部/未读/已读选项卡 + 详情弹窗自动已读</span></a>
+    </div>
+  </div>
+
+  <div class="group">
+    <h2>管理端（第三批 · 已出 · 以区县管理员「临海管理员」视角呈现）</h2>
+    <div class="pages">
+      <a href="admin-overview.html"><b>数据总览</b><span>统计卡 + 任务进度 + 区县两级表</span></a>
+      <a href="admin-tasks.html"><b>任务管理</b><span>下达 / 批量下达 / 调整 / 取消</span></a>
+      <a href="admin-message-send.html"><b>消息发送</b><span>按人员 / 区域 / 单位 + 已发记录</span></a>
+      <a href="admin-users.html"><b>用户管理</b><span>增删改 / 批量导入 / 导出 Excel</span></a>
+      <a href="admin-text-import.html"><b>文本导入</b><span>txt/docx 上传 + 后台解析进度</span></a>
+      <a href="admin-text-import-manage.html"><b>导入台账</b><span>批次列表 / 样本详情 / 撤销</span></a>
+      <a href="admin-texts.html"><b>文本管理</b><span>类别/日期/状态筛选 + 批量删除</span></a>
+      <a href="admin-recordings.html"><b>录音管理</b><span>全量录音 播放/下载/删除</span></a>
+      <a href="admin-annotations.html"><b>标注管理</b><span>全量标注 播放/删除</span></a>
+      <a href="admin-audio-upload.html"><b>音频上传</b><span>多文件逐个上传 + 状态列表</span></a>
+      <a href="admin-audio-import.html"><b>音频导入</b><span>服务器文件夹扫盘 + 进度</span></a>
+      <a href="admin-export.html"><b>数据集导出</b><span>筛选勾选 / ZIP 任务 / 即焚下载</span></a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

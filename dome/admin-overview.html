@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据总览 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .zp-overview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .zp-cat-bar{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:13px}
+  .zp-cat-bar .name{width:64px;color:var(--ink-2);flex:none}
+  .zp-cat-bar .track{flex:1;height:10px;border-radius:99px;background:#E8EDF5;overflow:hidden}
+  .zp-cat-bar .fill{height:100%;background:var(--navy-700)}
+  .zp-cat-bar .num{width:56px;text-align:right;color:var(--ink-3);font-variant-numeric:tabular-nums;flex:none}
+  .zp-table .is-total td{background:#F7F9FC;font-weight:600}
+  @media(max-width:1080px){.zp-overview-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body data-page="admin-overview">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>数据总览</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>数据总览</h1>
+        <span class="sub">辖区数据汇总 · 数据范围随管理员层级自动限定</span>
+        <div class="zp-head-actions">
+          <select class="zp-select" aria-label="地市"><option>全部地市</option><option selected>台州市</option><option>杭州市</option></select>
+          <select class="zp-select" aria-label="区县"><option selected>临海市</option><option>全部区县</option></select>
+          <button class="zp-btn zp-btn--primary">查询</button>
+        </div>
+      </div>
+
+      <!-- 统计卡 -->
+      <div class="zp-overview-grid zp-mb-16">
+        <div class="zp-stat"><span class="bar"></span><div class="label">辖区用户</div><div class="value">282<small>人</small></div><div class="delta">本月新增 36 人</div></div>
+        <div class="zp-stat"><span class="bar"></span><div class="label">录音总数</div><div class="value">3,540<small>条</small></div><div class="delta">今日新增 21 条</div></div>
+        <div class="zp-stat"><span class="bar"></span><div class="label">录音总时长</div><div class="value">21.5<small>小时</small></div><div class="delta">容量约 2.1 GB</div></div>
+        <div class="zp-stat zp-stat--gold"><span class="bar"></span><div class="label">音频素材</div><div class="value">1,205<small>条</small></div><div class="delta">标注素材库</div></div>
+        <div class="zp-stat zp-stat--ok"><span class="bar"></span><div class="label">已标注</div><div class="value">866<small>条</small></div><div class="delta">标注率 71.9%</div></div>
+        <div class="zp-stat zp-stat--ok"><span class="bar"></span><div class="label">判定为方言</div><div class="value">724<small>条</small></div><div class="delta">占已标注 83.6%</div></div>
+      </div>
+
+      <!-- 任务进度 + 文本类别 -->
+      <div class="zp-grid-2 zp-mb-16">
+        <div class="zp-card">
+          <div class="zp-card-head"><h2>辖区任务进度</h2><a class="zp-btn zp-btn--text" href="admin-tasks.html">任务管理</a></div>
+          <div class="zp-card-body">
+            <div class="zp-field" style="margin-bottom:14px">
+              <label>录音任务（已完成 / 总指标）</label>
+              <div class="zp-progress">
+                <div class="track"><div class="fill" style="width:68%"></div></div>
+                <span class="num"><b>2,406</b> / 3,500</span>
+              </div>
+            </div>
+            <div class="zp-field" style="margin-bottom:14px">
+              <label>标注任务（已完成 / 总指标）</label>
+              <div class="zp-progress">
+                <div class="track"><div class="fill" style="width:43%"></div></div>
+                <span class="num"><b>1,290</b> / 3,000</span>
+              </div>
+            </div>
+            <div class="zp-alert zp-alert--warn">
+              <span>辖区 282 人中 <b>18 人</b>的任务尚未启动（录音、标注均为 0），可发消息提醒。</span>
+            </div>
+          </div>
+        </div>
+        <div class="zp-card">
+          <div class="zp-card-head"><h2>文本类别分布</h2><a class="zp-btn zp-btn--text" href="admin-texts.html">文本管理</a></div>
+          <div class="zp-card-body">
+            <div class="zp-cat-bar"><span class="name">警情</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="num">1,240</span></div>
+            <div class="zp-cat-bar"><span class="name">生活</span><div class="track"><div class="fill" style="width:69%"></div></div><span class="num">860</span></div>
+            <div class="zp-cat-bar"><span class="name">地名</span><div class="track"><div class="fill" style="width:24%;background:var(--gold-500)"></div></div><span class="num">300</span></div>
+            <div class="zp-cat-bar"><span class="name">自定义</span><div class="track"><div class="fill" style="width:26%;background:var(--line-strong)"></div></div><span class="num">320</span></div>
+            <div class="zp-cat-bar"><span class="name">脏话</span><div class="track"><div class="fill" style="width:10%;background:var(--warn)"></div></div><span class="num">120</span></div>
+            <p class="zp-text-3 zp-mt-16">文本总量 2,840 条 · 未被录制 1,905 条</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 两级统计表 -->
+      <div class="zp-card">
+        <div class="zp-card-head"><h2>台州市 · 区县统计</h2><span class="zp-card-sub">下钻至派出所可在落地版点击区县展开</span></div>
+        <div class="zp-table-wrap">
+          <table class="zp-table">
+            <thead>
+              <tr>
+                <th>区县</th><th>用户数</th><th>录音数</th><th>录音时长</th>
+                <th>音频素材</th><th>已标注</th><th>方言判定</th><th>任务完成率</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="is-total"><td>台州市合计</td><td class="num">2,146</td><td class="num">26,855</td><td class="num">162.4 h</td><td class="num">11,382</td><td class="num">8,205</td><td class="num">6,847</td><td class="num">61%</td></tr>
+              <tr><td>椒江区</td><td class="num">342</td><td class="num">4,120</td><td class="num">24.8 h</td><td class="num">1,760</td><td class="num">1,290</td><td class="num">1,076</td><td class="num">58%</td></tr>
+              <tr><td>黄岩区</td><td class="num">298</td><td class="num">3,556</td><td class="num">21.5 h</td><td class="num">1,502</td><td class="num">1,088</td><td class="num">902</td><td class="num">55%</td></tr>
+              <tr><td>路桥区</td><td class="num">286</td><td class="num">3,402</td><td class="num">20.6 h</td><td class="num">1,433</td><td class="num">1,025</td><td class="num">856</td><td class="num">57%</td></tr>
+              <tr style="background:var(--gold-50)"><td><b>临海市（本辖区）</b></td><td class="num">282</td><td class="num">3,540</td><td class="num">21.5 h</td><td class="num">1,205</td><td class="num">866</td><td class="num">724</td><td class="num">68%</td></tr>
+              <tr><td>温岭市</td><td class="num">331</td><td class="num">3,988</td><td class="num">24.1 h</td><td class="num">1,690</td><td class="num">1,215</td><td class="num">1,012</td><td class="num">60%</td></tr>
+              <tr><td>玉环市</td><td class="num">243</td><td class="num">2,890</td><td class="num">17.4 h</td><td class="num">1,142</td><td class="num">820</td><td class="num">683</td><td class="num">62%</td></tr>
+              <tr><td>仙居县</td><td class="num">198</td><td class="num">2,366</td><td class="num">14.3 h</td><td class="num">996</td><td class="num">716</td><td class="num">598</td><td class="num">66%</td></tr>
+              <tr><td>天台县</td><td class="num">192</td><td class="num">2,290</td><td class="num">13.8 h</td><td class="num">948</td><td class="num">682</td><td class="num">569</td><td class="num">59%</td></tr>
+              <tr><td>三门县</td><td class="num">174</td><td class="num">1,203</td><td class="num">7.4 h</td><td class="num">706</td><td class="num">503</td><td class="num">421</td><td class="num">52%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

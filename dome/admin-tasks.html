@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务管理 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .zp-task-progress{display:flex;align-items:center;gap:8px;min-width:150px}
+  .zp-task-progress .track{flex:1;height:6px;border-radius:99px;background:#E8EDF5;overflow:hidden}
+  .zp-task-progress .fill{height:100%;background:var(--navy-700)}
+  .zp-task-progress .fill.is-done{background:var(--ok)}
+  .zp-task-progress .num{font-size:12px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .zp-check{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px}
+  .zp-check input{width:16px;height:16px;accent-color:var(--navy-700)}
+</style>
+</head>
+<body data-page="admin-tasks">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>任务管理</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>任务管理</h1>
+        <span class="sub">给辖区民警下达录音 / 标注数量指标，进度实时统计</span>
+        <div class="zp-head-actions">
+          <button class="zp-btn zp-btn--gold" data-open="#dlgBatch">批量下达</button>
+          <button class="zp-btn zp-btn--primary" data-open="#dlgAssign">下达任务</button>
+        </div>
+      </div>
+
+      <!-- 筛选栏 -->
+      <div class="zp-filter">
+        <select class="zp-select" aria-label="任务类型">
+          <option>全部类型</option><option>录音任务</option><option>标注任务</option>
+        </select>
+        <select class="zp-select" aria-label="状态">
+          <option>全部状态</option><option>进行中</option><option>已完成</option><option>已取消</option>
+        </select>
+        <input class="zp-input" placeholder="姓名 / 手机号" aria-label="姓名或手机号">
+        <button class="zp-btn zp-btn--primary">查询</button>
+        <button class="zp-btn zp-btn--ghost">重置</button>
+      </div>
+
+      <!-- 任务列表 -->
+      <div class="zp-card">
+        <div class="zp-table-wrap">
+          <table class="zp-table">
+            <thead>
+              <tr>
+                <th>民警</th><th>单位</th><th>类型</th><th>目标</th><th>已完成</th>
+                <th style="width:180px">进度</th><th>状态</th><th>下达时间</th><th class="zp-text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>临海民警01</b><br><span class="zp-text-3">33100400002</span></td>
+                <td>××派出所</td>
+                <td><span class="zp-tag zp-tag--blue">录音</span></td>
+                <td class="num">100</td><td class="num">36</td>
+                <td><div class="zp-task-progress"><div class="track"><div class="fill" style="width:36%"></div></div><span class="num">36%</span></div></td>
+                <td><span class="zp-tag zp-tag--navy">进行中</span></td>
+                <td class="num">09-15 09:00</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgAdjust">调整</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgCancel">取消</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>临海民警02</b><br><span class="zp-text-3">33100400003</span></td>
+                <td>××派出所</td>
+                <td><span class="zp-tag zp-tag--green">标注</span></td>
+                <td class="num">50</td><td class="num">50</td>
+                <td><div class="zp-task-progress"><div class="track"><div class="fill is-done" style="width:100%"></div></div><span class="num" style="color:var(--ok)">100%</span></div></td>
+                <td><span class="zp-tag zp-tag--green">已完成</span></td>
+                <td class="num">09-10 14:00</td>
+                <td class="zp-text-right"><span class="zp-text-3">—</span></td>
+              </tr>
+              <tr>
+                <td><b>临海民警03</b><br><span class="zp-text-3">13905810001</span></td>
+                <td>杜桥派出所</td>
+                <td><span class="zp-tag zp-tag--blue">录音</span></td>
+                <td class="num">80</td><td class="num">0</td>
+                <td><div class="zp-task-progress"><div class="track"><div class="fill" style="width:0%"></div></div><span class="num">0%</span></div></td>
+                <td><span class="zp-tag zp-tag--warn">未启动</span></td>
+                <td class="num">09-18 10:30</td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-open="#dlgAdjust">调整</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgCancel">取消</button>
+                </td>
+              </tr>
+              <tr>
+                <td><b>王警官</b><br><span class="zp-text-3">13905810002</span></td>
+                <td>桃渚派出所</td>
+                <td><span class="zp-tag zp-tag--green">标注</span></td>
+                <td class="num">30</td><td class="num">41</td>
+                <td><div class="zp-task-progress"><div class="track"><div class="fill is-done" style="width:100%"></div></div><span class="num" style="color:var(--gold-500)">137%</span></div></td>
+                <td><span class="zp-tag zp-tag--green">已完成</span></td>
+                <td class="num">09-12 16:20</td>
+                <td class="zp-text-right"><span class="zp-text-3">—</span></td>
+              </tr>
+              <tr style="opacity:.62">
+                <td><b>李警官</b><br><span class="zp-text-3">13905810003</span></td>
+                <td>上盘派出所</td>
+                <td><span class="zp-tag zp-tag--blue">录音</span></td>
+                <td class="num">60</td><td class="num">12</td>
+                <td><div class="zp-task-progress"><div class="track"><div class="fill" style="width:20%"></div></div><span class="num">20%</span></div></td>
+                <td><span class="zp-tag zp-tag--gray">已取消</span></td>
+                <td class="num">09-05 11:00</td>
+                <td class="zp-text-right"><span class="zp-text-3">—</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="zp-pagination" style="padding:14px 20px">
+          <span class="total">辖区共 96 条任务 · 进行中 61 · 已完成 28 · 已取消 7</span>
+          <button>上一页</button><button class="is-active">1</button><button>2</button><button>3</button><button>下一页</button>
+        </div>
+      </div>
+
+      <div class="zp-alert zp-alert--info zp-mt-16">
+        <span>规则说明：进度 = 下达后的有效新增数（删除自动扣减）；同一民警同一类型仅一条进行中任务，重复下达即调整指标；任务下达与调整会自动向本人发送站内消息。</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 下达任务 -->
+<div class="zp-dialog-mask" id="dlgAssign">
+  <div class="zp-dialog" role="dialog" aria-label="下达任务">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>下达任务</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <div class="zp-field">
+        <label>选择民警<span class="req">*</span></label>
+        <select class="zp-select"><option>请搜索姓名 / 手机号</option><option selected>临海民警03 · 13905810001 · 杜桥派出所</option></select>
+      </div>
+      <div class="zp-field">
+        <label>任务类型<span class="req">*</span></label>
+        <div class="zp-seg" role="group"><button class="is-active" type="button">录音任务</button><button type="button">标注任务</button></div>
+      </div>
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>目标数量（条）<span class="req">*</span></label>
+          <input class="zp-input" type="number" value="100">
+        </div>
+        <div class="zp-field">
+          <label>备注</label>
+          <input class="zp-input" placeholder="如：优先警情类文本">
+        </div>
+      </div>
+      <p class="zp-hint">该民警已有进行中的录音任务（100 条）时，本次下达将<b>调整其指标</b>，已完成数继续有效。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：任务已下达，站内消息已通知本人">确认下达</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量下达 -->
+<div class="zp-dialog-mask" id="dlgBatch">
+  <div class="zp-dialog" role="dialog" aria-label="批量下达" style="max-width:560px">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>批量下达</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <div class="zp-field">
+        <label>任务类型<span class="req">*</span></label>
+        <div class="zp-seg" role="group"><button class="is-active" type="button">录音任务</button><button type="button">标注任务</button></div>
+      </div>
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>目标数量（条）<span class="req">*</span></label>
+          <input class="zp-input" type="number" value="50">
+        </div>
+        <div class="zp-field">
+          <label>范围</label>
+          <select class="zp-select"><option selected>临海市全部民警</option><option>××派出所</option><option>杜桥派出所</option></select>
+        </div>
+      </div>
+      <div class="zp-field">
+        <label>选择民警（已选 3 人）<span class="req">*</span></label>
+        <div style="border:1px solid var(--line);border-radius:6px;padding:6px 12px;max-height:150px;overflow-y:auto">
+          <label class="zp-check"><input type="checkbox" checked>临海民警01 · ××派出所</label>
+          <label class="zp-check"><input type="checkbox" checked>临海民警02 · ××派出所</label>
+          <label class="zp-check"><input type="checkbox" checked>临海民警03 · 杜桥派出所</label>
+          <label class="zp-check"><input type="checkbox">王警官 · 桃渚派出所</label>
+          <label class="zp-check"><input type="checkbox">李警官 · 上盘派出所</label>
+        </div>
+      </div>
+      <p class="zp-hint">已有同类型进行中任务的民警，指标将被调整；其余民警新建任务，并逐一发送站内消息通知。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：已批量下达 3 人，消息已通知">批量下达</button>
+    </div>
+  </div>
+</div>
+
+<!-- 调整任务 -->
+<div class="zp-dialog-mask" id="dlgAdjust">
+  <div class="zp-dialog" role="dialog" aria-label="调整任务">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>调整任务</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p class="zp-text-3" style="margin-bottom:14px">临海民警01 · 录音任务 · 当前 36 / 100</p>
+      <div class="zp-form-row">
+        <div class="zp-field">
+          <label>调整目标（条）<span class="req">*</span></label>
+          <input class="zp-input" type="number" value="120">
+        </div>
+        <div class="zp-field">
+          <label>备注</label>
+          <input class="zp-input" value="优先警情类文本">
+        </div>
+      </div>
+      <p class="zp-hint">调整后基线不变、已完成数继续有效，本人将收到指标调整消息。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：指标已调整为 120 条">保存调整</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取消任务 -->
+<div class="zp-dialog-mask" id="dlgCancel">
+  <div class="zp-dialog" role="alertdialog" aria-label="取消任务">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>取消任务</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p>确定取消<b>临海民警03 · 录音任务（0 / 80）</b>吗？取消后进度不再统计，可随时重新下达。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--danger" data-close data-toast="演示：任务已取消">确认取消任务</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

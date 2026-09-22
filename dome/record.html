@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>录音采集 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="record">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息<span class="zp-dot-badge">4</span></a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar">临</span>
+      <dl><dt>临海民警01</dt><dd>临海市公安局 · ××派出所</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>日常工作</span><span class="sep">/</span><b>录音采集</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="未读消息" onclick="location.href='messages.html'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          <span class="zp-dot-badge">4</span>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<span class="role">民警</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content" style="max-width:880px">
+      <div class="zp-page-head">
+        <h1>录音采集</h1>
+        <span class="sub">用本地方言朗读下方文本，一条文本只需录制一次</span>
+      </div>
+
+      <!-- 我的任务进度 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-body zp-flex">
+          <span class="zp-tag zp-tag--navy">我的任务</span>
+          <div class="zp-progress" style="flex:1">
+            <div class="track"><div class="fill" style="width:36%"></div></div>
+            <span class="num"><b>36</b> / 100 条</span>
+          </div>
+          <span class="zp-text-3">剩余 64 条</span>
+        </div>
+      </div>
+
+      <!-- 步骤 -->
+      <div class="zp-steps">
+        <div class="zp-step is-done">领取文本</div>
+        <div class="zp-step is-active">开始录音</div>
+        <div class="zp-step">上传</div>
+        <div class="zp-step">质检入库</div>
+      </div>
+
+      <!-- 文本卡 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head">
+          <h2>本次文本</h2>
+          <span class="zp-tag zp-tag--blue">警情</span>
+          <span class="zp-tag zp-tag--gray">临海方言</span>
+          <span class="zp-card-sub" style="margin-left:auto;color:var(--warn)">分配剩余 <b class="zp-serif" style="font-size:16px">01:47</b>，超时自动释放</span>
+        </div>
+        <div class="zp-card-body">
+          <p class="zp-dialect">「你们不要吵了，都先坐下来，有话好好讲。」</p>
+          <div class="zp-flex zp-mt-16">
+            <button class="zp-btn zp-btn--ghost" data-toast="演示：已换一条文本">换一条</button>
+            <button class="zp-btn zp-btn--ghost" data-open="#dlgCustom">自定义文本</button>
+            <span class="zp-text-3" style="margin-left:auto">分配的文本 2 分钟内有效，请尽快录制</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 录音卡：录制中 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>正在录音</h2><span class="zp-tag zp-tag--danger" style="margin-left:auto">● 录制中</span></div>
+        <div class="zp-card-body zp-center" style="padding:28px 20px 24px">
+          <button class="zp-record is-recording" aria-label="停止录音">
+            <span class="core"><span class="dot"></span></span>
+          </button>
+          <p class="zp-timer zp-mt-16">00:23</p>
+          <div class="zp-wave is-live zp-mt-8" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="zp-flex zp-mt-16" style="justify-content:center">
+            <button class="zp-btn zp-btn--danger zp-btn--lg">停止录音</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 完成后形态（示例） -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>录制完成后</h2><span class="zp-card-sub">以下为停止录音后的状态示例</span></div>
+        <div class="zp-card-body">
+          <div class="zp-audio-row">
+            <button class="play" aria-label="播放">▶</button>
+            <span class="meta"><b>试听录音</b> ·「你们不要吵了，都先坐下来，有话好好讲。」</span>
+            <span class="time">00:18 · 286 KB</span>
+          </div>
+          <div class="zp-flex zp-mt-16">
+            <button class="zp-btn zp-btn--ghost">重新录制</button>
+            <button class="zp-btn zp-btn--primary zp-btn--lg zp-btn--block" data-toast="演示：上传成功，已提交质检，通过后计入任务进度">上传录音</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 上传后质检（示例） -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>上传后质检（示例）</h2><span class="zp-card-sub">系统自动送方言转译接口比对，无需等待即可继续录下一条</span></div>
+        <div class="zp-card-body">
+          <div class="zp-flex zp-mb-16">
+            <span class="zp-tag zp-tag--warn">待质检</span>
+            <span style="flex:1;font-size:13px;color:var(--ink-2)">「你们不要吵了，都先坐下来，有话好好讲。」 · 已上传，等待转译接口返回比对结果</span>
+          </div>
+          <div class="zp-flex">
+            <span class="zp-tag zp-tag--green">质检通过</span>
+            <span style="flex:1;font-size:13px;color:var(--ink-2)">「路口堵住了，让车挪一挪。」 · 相似度 87% ≥ 50%，正式入库并计入任务进度</span>
+          </div>
+          <div class="zp-alert zp-alert--danger zp-mt-16">
+            <span>质检未通过示例：「上盘镇」相似度 31%，低于 50%，该录音已自动移除，并已通过站内消息通知重新录制。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="zp-alert zp-alert--info">
+        <span>录制提示：请在安静环境中，用本地方言自然朗读；建议时长 5～20 秒。上传后系统自动质检：与方言转译接口返回文本比对，相似度 ≥ 50% 正式入库并计入任务进度，未通过的录音将被移除并通过消息通知重录。</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 自定义文本弹窗 -->
+<div class="zp-dialog-mask" id="dlgCustom">
+  <div class="zp-dialog" role="dialog" aria-label="自定义文本">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>自定义文本</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <div class="zp-field">
+        <label>文本内容<span class="req">*</span></label>
+        <textarea class="zp-textarea" placeholder="输入一句想录制的方言文本，建议不超过 40 字"></textarea>
+      </div>
+      <p class="zp-hint">自定义文本将按你所属区域自动归入「自定义」类别，同样 2 分钟内有效。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：已保存并领取自定义文本">保存并领取</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

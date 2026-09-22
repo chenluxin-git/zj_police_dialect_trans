@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的录音 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="my-recordings">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息<span class="zp-dot-badge">4</span></a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar">临</span>
+      <dl><dt>临海民警01</dt><dd>临海市公安局 · ××派出所</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>日常工作</span><span class="sep">/</span><b>我的录音</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="未读消息" onclick="location.href='messages.html'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          <span class="zp-dot-badge">4</span>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<span class="role">民警</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>我的录音</h1>
+        <span class="sub">共 36 条 · 待质检 2 条 · 总时长 4 分 12 秒</span>
+      </div>
+
+      <div class="zp-alert zp-alert--info zp-mb-16">
+        <span>录音上传后自动质检：与方言转译接口比对，相似度 ≥ 50% 正式入库；未通过的录音已自动移除并通过消息通知重录，不会出现在下方列表。</span>
+      </div>
+
+      <!-- 筛选栏 -->
+      <div class="zp-filter">
+        <select class="zp-select" aria-label="类别">
+          <option>全部类别</option><option>警情</option><option>生活</option>
+          <option>脏话</option><option>地名</option><option>自定义</option>
+        </select>
+        <select class="zp-select" aria-label="质检状态">
+          <option>全部状态</option><option>待质检</option><option>已通过</option>
+        </select>
+        <input class="zp-input" placeholder="搜索文本内容" aria-label="搜索文本内容">
+        <button class="zp-btn zp-btn--primary">查询</button>
+        <button class="zp-btn zp-btn--ghost">重置</button>
+      </div>
+
+      <!-- 列表 -->
+      <div class="zp-card">
+        <div class="zp-table-wrap">
+          <table class="zp-table">
+            <thead>
+              <tr>
+                <th style="width:34%">文本内容</th><th>类别</th><th>方言</th>
+                <th>时长</th><th>大小</th><th>录制时间</th><th>质检</th><th class="zp-text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><em class="zp-serif">「你们不要吵了，都先坐下来，有话好好讲。」</em></td>
+                <td><span class="zp-tag zp-tag--blue">警情</span></td>
+                <td>临海方言</td>
+                <td class="num">00:18</td><td class="num">286 KB</td><td class="num">09-21 10:24</td>
+                <td><span class="zp-tag zp-tag--warn">待质检</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放（全站单声道，新播放自动停上一个）">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><em class="zp-serif">「落雨了，衣裳好收收了。」</em></td>
+                <td><span class="zp-tag zp-tag--green">生活</span></td>
+                <td>临海方言</td>
+                <td class="num">00:09</td><td class="num">152 KB</td><td class="num">09-21 09:02</td>
+                <td><span class="zp-tag zp-tag--warn">待质检</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><em class="zp-serif">「我是社区民警，麻烦开下门。」</em></td>
+                <td><span class="zp-tag zp-tag--blue">警情</span></td>
+                <td>临海方言</td>
+                <td class="num">00:06</td><td class="num">108 KB</td><td class="num">09-20 16:47</td>
+                <td><span class="zp-tag zp-tag--green">已通过</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><em class="zp-serif">「侬格个人咋格憨个！」</em></td>
+                <td><span class="zp-tag zp-tag--warn">脏话</span></td>
+                <td>临海方言</td>
+                <td class="num">00:04</td><td class="num">86 KB</td><td class="num">09-20 15:31</td>
+                <td><span class="zp-tag zp-tag--green">已通过</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><em class="zp-serif">「涌泉镇」</em></td>
+                <td><span class="zp-tag zp-tag--gold">地名</span></td>
+                <td>临海方言</td>
+                <td class="num">00:03</td><td class="num">72 KB</td><td class="num">09-20 11:20</td>
+                <td><span class="zp-tag zp-tag--green">已通过</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><em class="zp-serif">「夜里向一道去吃麦虾。」</em></td>
+                <td><span class="zp-tag zp-tag--gray">自定义</span></td>
+                <td>临海方言</td>
+                <td class="num">00:11</td><td class="num">178 KB</td><td class="num">09-19 18:05</td>
+                <td><span class="zp-tag zp-tag--green">已通过</span></td>
+                <td class="zp-text-right">
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始播放">播放</button>
+                  <button class="zp-btn zp-btn--text" data-toast="演示：开始下载">下载</button>
+                  <button class="zp-btn zp-btn--text is-danger" data-open="#dlgDel">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="zp-pagination" style="padding:14px 20px">
+          <span class="total">共 36 条</span>
+          <button>上一页</button><button class="is-active">1</button><button>2</button><button>3</button><button>上一页</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 删除确认 -->
+<div class="zp-dialog-mask" id="dlgDel">
+  <div class="zp-dialog" role="alertdialog" aria-label="删除录音">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>删除录音</h3>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p>确定删除这条录音吗？删除后音频文件同时清除，且<b>任务进度相应扣减</b>，无法恢复。</p>
+      <p class="zp-dialect zp-dialect--sm zp-mt-8">「你们不要吵了，都先坐下来，有话好好讲。」</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--danger" data-close data-toast="演示：已删除，进度已回退">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

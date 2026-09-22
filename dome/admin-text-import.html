@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文本导入 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .zp-dropzone{
+    border:1.5px dashed var(--line-strong);border-radius:var(--radius-lg);
+    padding:36px 16px;text-align:center;color:var(--ink-3);font-size:13px;
+  }
+  .zp-dropzone b{color:var(--navy-700);font-size:14px}
+</style>
+</head>
+<body data-page="admin-text-import">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">管理工作</div>
+        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
+        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
+        <a href="admin-users.html" data-page="admin-users">用户管理</a>
+        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
+        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
+        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
+        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
+        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
+        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
+        <a href="admin-export.html" data-page="admin-export">数据集导出</a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar zp-avatar--gold">临</span>
+      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>文本导入</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content" style="max-width:880px">
+      <div class="zp-page-head">
+        <h1>文本导入</h1>
+        <span class="sub">上传 txt / docx 文件，按句号自动切分为朗读文本，后台导入</span>
+        <div class="zp-head-actions">
+          <button class="zp-btn zp-btn--ghost" data-toast="演示：txt 模板下载中">txt 模板</button>
+          <button class="zp-btn zp-btn--ghost" data-toast="演示：docx 模板下载中">docx 模板</button>
+        </div>
+      </div>
+
+      <!-- 导入设置 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>导入设置</h2></div>
+        <div class="zp-card-body">
+          <div class="zp-form-row">
+            <div class="zp-field">
+              <label>文本类别<span class="req">*</span></label>
+              <select class="zp-select"><option selected>警情</option><option>生活</option><option>脏话</option><option>地名</option></select>
+            </div>
+            <div class="zp-field">
+              <label>归属区域<span class="req">*</span></label>
+              <select class="zp-select"><option selected>临海市（本辖区）</option></select>
+              <p class="zp-hint">超级管理员可选任意区域，区县管理员固定本辖区</p>
+            </div>
+          </div>
+          <div class="zp-field" style="margin-bottom:0">
+            <label>上传文件<span class="req">*</span></label>
+            <div class="zp-dropzone">
+              <b>点击选择或拖入文件</b><br>
+              支持 .txt / .docx，UTF-8 编码，单文件不超过 5 MB
+            </div>
+            <p class="zp-hint zp-mt-8">已选择：<b style="color:var(--ink)">警情文本批次0921.txt</b>（126 KB）</p>
+          </div>
+          <button class="zp-btn zp-btn--primary zp-btn--lg zp-btn--block zp-mt-16" data-toast="演示：已开始导入，后台解析中">开始导入</button>
+        </div>
+      </div>
+
+      <!-- 导入进度示例 -->
+      <div class="zp-card zp-mb-16">
+        <div class="zp-card-head"><h2>导入进度</h2><span class="zp-tag zp-tag--warn">解析中</span></div>
+        <div class="zp-card-body">
+          <div class="zp-progress zp-mb-16">
+            <div class="track"><div class="fill" style="width:60%"></div></div>
+            <span class="num"><b>120</b> / 200 句</span>
+          </div>
+          <p class="zp-text-3 zp-mb-16">按句号「。」切分，去空行去重复；导入完成可在「导入台账」查看与撤销。</p>
+          <div class="zp-alert zp-alert--info">
+            <span>切分示例：「你们不要吵了，都先坐下来，有话好好讲。」＋「我是社区民警，麻烦开下门。」＋「路口堵住了，让车挪一挪。」→ 3 条文本</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

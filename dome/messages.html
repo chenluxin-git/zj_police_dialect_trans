@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的消息 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body data-page="messages">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <a href="record.html" data-page="record">录音采集</a>
+        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
+        <a href="annotation.html" data-page="annotation">录音标注</a>
+        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息<span class="zp-dot-badge">4</span></a>
+      </div>
+    </nav>
+    <div class="zp-side-user">
+      <span class="zp-avatar">临</span>
+      <dl><dt>临海民警01</dt><dd>临海市公安局 · ××派出所</dd></dl>
+      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
+    </div>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>消息</span><span class="sep">/</span><b>我的消息</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="未读消息">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          <span class="zp-dot-badge">4</span>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<span class="role">民警</span></div>
+      </div>
+    </header>
+
+    <main class="zp-content" style="max-width:920px">
+      <div class="zp-page-head">
+        <h1>我的消息</h1>
+        <span class="sub">打开消息即自动标记为已读</span>
+        <div class="zp-head-actions">
+          <button class="zp-btn zp-btn--ghost" data-toast="演示：已全部标记为已读">全部标记为已读</button>
+        </div>
+      </div>
+
+      <div class="zp-card">
+        <div>
+          <div class="zp-tabs" data-tab-group="msgTabs" style="padding:0 20px">
+            <button class="is-active" data-tab="all" type="button">全部 (7)</button>
+            <button data-tab="unread" type="button">未读 (4)</button>
+            <button data-tab="read" type="button">已读 (3)</button>
+          </div>
+
+          <!-- 全部 -->
+          <div class="zp-tab-panel is-active" data-panel="all">
+            <div class="zp-msg-item is-unread" data-open="#dlgQc" style="cursor:pointer">
+              <span class="zp-tag zp-tag--danger">质检</span>
+              <div style="min-width:0;flex:1"><h4>录音质检未通过</h4><p>「上盘镇」相似度 31%，低于 50%，该录音已移除，请重新录制。</p></div>
+              <span class="time">09-21 11:40</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>新任务通知</h4><p>管理员给你下达了标注任务：50 条，请前往「录音标注」完成。</p></div>
+              <span class="time">09-18 14:30</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>录音任务指标调整</h4><p>你的录音任务指标已调整为 100 条，此前完成数继续有效。</p></div>
+              <span class="time">09-17 10:12</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--gold">公告</span>
+              <div style="min-width:0;flex:1"><h4>平台试运行公告</h4><p>平台已在全省公安内网上线试运行，录音请在安静环境中完成。</p></div>
+              <span class="time">09-16 09:00</span>
+            </div>
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>新任务通知</h4><p>管理员给你下达了录音任务：60 条，请前往「录音采集」完成。</p></div>
+              <span class="time">09-15 09:00</span>
+            </div>
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>系统维护通知</h4><p>9月12日 22:00－24:00 系统升级维护，期间暂停上传。</p></div>
+              <span class="time">09-11 18:00</span>
+            </div>
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>文本库更新提醒</h4><p>本区新增警情类文本 200 条，可前往「录音采集」领取。</p></div>
+              <span class="time">09-10 08:30</span>
+            </div>
+          </div>
+
+          <!-- 未读 -->
+          <div class="zp-tab-panel" data-panel="unread">
+            <div class="zp-msg-item is-unread" data-open="#dlgQc" style="cursor:pointer">
+              <span class="zp-tag zp-tag--danger">质检</span>
+              <div style="min-width:0;flex:1"><h4>录音质检未通过</h4><p>「上盘镇」相似度 31%，低于 50%，该录音已移除，请重新录制。</p></div>
+              <span class="time">09-21 11:40</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>新任务通知</h4><p>管理员给你下达了标注任务：50 条，请前往「录音标注」完成。</p></div>
+              <span class="time">09-18 14:30</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>录音任务指标调整</h4><p>你的录音任务指标已调整为 100 条，此前完成数继续有效。</p></div>
+              <span class="time">09-17 10:12</span>
+            </div>
+            <div class="zp-msg-item is-unread" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--gold">公告</span>
+              <div style="min-width:0;flex:1"><h4>平台试运行公告</h4><p>平台已在全省公安内网上线试运行，录音请在安静环境中完成。</p></div>
+              <span class="time">09-16 09:00</span>
+            </div>
+          </div>
+
+          <!-- 已读 -->
+          <div class="zp-tab-panel" data-panel="read">
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--navy">任务</span>
+              <div style="min-width:0;flex:1"><h4>新任务通知</h4><p>管理员给你下达了录音任务：60 条，请前往「录音采集」完成。</p></div>
+              <span class="time">09-15 09:00</span>
+            </div>
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>系统维护通知</h4><p>9月12日 22:00－24:00 系统升级维护，期间暂停上传。</p></div>
+              <span class="time">09-11 18:00</span>
+            </div>
+            <div class="zp-msg-item" data-open="#dlgDetail" style="cursor:pointer">
+              <span class="zp-tag zp-tag--blue">通知</span>
+              <div style="min-width:0;flex:1"><h4>文本库更新提醒</h4><p>本区新增警情类文本 200 条，可前往「录音采集」领取。</p></div>
+              <span class="time">09-10 08:30</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="zp-pagination" style="padding:14px 20px">
+          <span class="total">共 7 条</span>
+          <button>上一页</button><button class="is-active">1</button><button>下一页</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 质检未通过详情 -->
+<div class="zp-dialog-mask" id="dlgQc">
+  <div class="zp-dialog" role="dialog" aria-label="录音质检未通过">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>录音质检未通过</h3>
+      <span class="zp-tag zp-tag--danger" style="margin-left:8px">质检</span>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p class="zp-text-3" style="margin-bottom:12px">系统自动发送 · 2026-09-21 11:40</p>
+      <p style="line-height:1.8">你上传的录音 <em class="zp-serif">「上盘镇」</em> 经方言转译接口比对，<b>相似度 31%</b>，低于 50% 阈值，判定不合格。</p>
+      <p style="line-height:1.8" class="zp-mt-8">该录音已从库中移除，请前往「<b>录音采集</b>」重新录制该文本；任务进度以质检通过的录音为准。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：已标记为已读">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 消息详情 -->
+<div class="zp-dialog-mask" id="dlgDetail">
+  <div class="zp-dialog" role="dialog" aria-label="消息详情">
+    <div class="zp-card-head" style="border-radius:10px 10px 0 0">
+      <h3>新任务通知</h3>
+      <span class="zp-tag zp-tag--navy" style="margin-left:8px">任务</span>
+      <button class="zp-x" data-close aria-label="关闭">×</button>
+    </div>
+    <div class="zp-dialog-body">
+      <p class="zp-text-3" style="margin-bottom:12px">发送人：临海管理员 · 2026-09-18 14:30</p>
+      <p style="line-height:1.8">管理员给你下达了<b>标注任务：50 条</b>。</p>
+      <p style="line-height:1.8" class="zp-mt-8">请前往「<b>录音标注</b>」完成，完成情况可在首页任务卡查看。</p>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--primary" data-close data-toast="演示：已标记为已读">知道了</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+</body>
+</html>

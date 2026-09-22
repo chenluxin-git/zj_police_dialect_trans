@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 录音组件（dome/record.html 1:1）：MediaRecorder 录音 + 96px 圆形脉冲钮 + 计时 + 实时波形
+ * 录音组件（dome/record.html 演进）：MediaRecorder 录音 + 开始/停止切换钮 + 计时 + 实时波形
+ * （2026-09-22 用户要求：去掉中央圆形脉冲钮，改为「开始录音」文字按钮）
  * - props {disabled}：无文本分配时禁用
  * - emits start（开始录音）/ stop(blob, seconds)（停止并产出 Blob）
  * - mimeType 择优 webm;codecs=opus → webm → mp4；getUserMedia 失败给出明确指引
@@ -99,24 +100,28 @@ onUnmounted(() => {
 <template>
   <div class="zp-center" style="padding: 28px 20px 24px">
     <button
-      class="zp-record"
-      :class="{ 'is-recording': recording }"
-      :disabled="disabled"
+      v-if="recording"
+      class="zp-btn zp-btn--danger zp-btn--lg"
       type="button"
-      :aria-label="recording ? '停止录音' : '开始录音'"
-      @click="recording ? stop() : start()"
+      @click="stop()"
     >
-      <span class="core"><span class="dot"></span></span>
+      停止录音
+    </button>
+    <button
+      v-else
+      class="zp-btn zp-btn--primary zp-btn--lg"
+      type="button"
+      :disabled="disabled"
+      @click="start()"
+    >
+      开始录音
     </button>
     <p class="zp-timer zp-mt-16">{{ format(seconds) }}</p>
     <div class="zp-wave zp-mt-8" :class="{ 'is-live': recording }" aria-hidden="true">
       <span v-for="n in 40" :key="n"></span>
     </div>
-    <div class="zp-flex zp-mt-16" style="justify-content: center">
-      <button v-if="recording" class="zp-btn zp-btn--danger zp-btn--lg" type="button" @click="stop()">
-        停止录音
-      </button>
-      <span v-else class="zp-text-3">点击上方按钮开始录音，建议时长 5～20 秒</span>
-    </div>
+    <p class="zp-text-3 zp-mt-16">
+      {{ recording ? "正在录音…点击上方按钮停止" : "建议录音时长 5～20 秒" }}
+    </p>
   </div>
 </template>

@@ -76,9 +76,11 @@ def test_seed_password_verifiable(db):
     assert verify_password("123456", u.password_hash)
 
 
-@pytest.mark.skip(reason="依赖 auth 端点，集成包启用")
-def test_seed_account_login(client, auth_header):
-    """预置账号可登录（P-auth-base 合并后由集成包解除 skip）"""
-    resp = client.post("/api/auth/login", json={"phone": "33100400002", "password": "123456"})
+def test_seed_account_login(client, db):
+    """预置账号可登录（集成解除 skip：seed × auth 跨包验证）
+    用 33100400001（seed 县管账号）而非 make_user 默认 33100400002，确保验证的是 seed 产物。"""
+    run_seed(db)
+    resp = client.post("/api/auth/login", json={"phone": "33100400001", "password": "123456"})
     assert resp.status_code == 200
     assert resp.json()["code"] == 0
+    assert resp.json()["data"]["token"]

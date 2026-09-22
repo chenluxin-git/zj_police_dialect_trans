@@ -3,3 +3,4 @@
 """
 from .users import router as users_router                     # P-admin-users(T14)
 from .user_import import router as user_import_router         # P-admin-users(T15)
+from . import texts, text_import, audio_upload, audio_import  # noqa: F401  # P-admin-content(T16/T17/T19)

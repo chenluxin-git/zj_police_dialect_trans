@@ -30,6 +30,10 @@ from .api.audio_files import router as audio_files_router
 from .api.admin.export import router as admin_export_router  # P-export(T23)
 from .api.admin.users import router as admin_users_router  # P-admin-users(T14)
 from .api.admin.user_import import router as admin_user_import_router  # P-admin-users(T15)
+from .api.admin.texts import router as admin_texts_router  # P-admin-content(T16)
+from .api.admin.text_import import router as admin_text_import_router, manage_router as admin_text_import_manage_router  # P-admin-content(T17)
+from .api.admin.audio_upload import router as admin_audio_upload_router  # P-admin-content(T19)
+from .api.admin.audio_import import router as admin_audio_import_router  # P-admin-content(T19)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(base_router, prefix="/api")
@@ -42,6 +46,11 @@ app.include_router(audio_files_router, prefix="/api")
 app.include_router(admin_export_router, prefix="/api/admin")
 app.include_router(admin_users_router, prefix="/api/admin")
 app.include_router(admin_user_import_router, prefix="/api/admin")
+app.include_router(admin_texts_router, prefix="/api/admin")
+app.include_router(admin_text_import_router, prefix="/api/admin")
+app.include_router(admin_text_import_manage_router, prefix="/api/admin")
+app.include_router(admin_audio_upload_router, prefix="/api/admin")
+app.include_router(admin_audio_import_router, prefix="/api/admin")
 
 @app.get("/api/health")
 def health() -> dict:

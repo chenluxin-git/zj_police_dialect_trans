@@ -5,8 +5,7 @@ r"""T10 标注作业（移植自旧 app/api/annotations.py）：
 - next 契约 {file_id, file_name, file_url, region_code, dialect_code}；无货 HTTP 404 + code=1
 - Annotation.region_code 取自音频文件（模型新增列，非空）；时间基准统一本地 datetime.now()
   （与模型列 default 一致，不得混用 utcnow，否则 8 小时偏移导致锁立即过期）
-- 信封 {code,msg,data}：本包内联 ok()（schemas/__init__.py 归 P-auth-base 独占，本分支基线尚无；
-  线格式与其完全一致，集成包可统一改 import）
+- 信封 {code,msg,data}：统一 from ..schemas import ok（集成收敛，原包内联实现已删）
 """
 from datetime import datetime, timedelta
 
@@ -18,16 +17,13 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..models import Annotation, AudioFile, FileAssignment, User
+from ..schemas import ok
 from ..schemas.annotation import AnnotationCreate
 from .deps import get_current_user
 
 router = APIRouter(prefix="/annotations", tags=["标注"])
 
 LOCK = timedelta(seconds=180)  # 音频分配锁 3 分钟（全局约束）
-
-
-def ok(data=None, msg: str = "") -> dict:
-    return {"code": 0, "msg": msg, "data": data}
 
 
 def _purge_expired(db: Session) -> int:

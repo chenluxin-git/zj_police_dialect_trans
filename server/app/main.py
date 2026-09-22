@@ -19,6 +19,9 @@ app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.co
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # 路由注册位：T5 起在此逐任务 include_router
+from .api.texts import router as texts_router  # noqa: E402
+
+app.include_router(texts_router, prefix="/api")
 
 @app.get("/api/health")
 def health() -> dict:

@@ -19,6 +19,11 @@ app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.co
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # 路由注册位：T5 起在此逐任务 include_router
+from .api.annotations import router as annotations_router
+from .api.audio_files import router as audio_files_router
+
+app.include_router(annotations_router, prefix="/api")
+app.include_router(audio_files_router, prefix="/api")
 
 @app.get("/api/health")
 def health() -> dict:

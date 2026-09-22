@@ -4,7 +4,7 @@
 import pytest
 
 from app.core.security import create_token
-from app.models import Recording, Region, Task, Text, User
+from app.models import Annotation, AudioFile, PoliceStation, Recording, Region, Task, Text, User
 from tests.conftest import make_user
 
 
@@ -162,3 +162,104 @@ def test_overview_district_single_row(client, db):
     assert data["rows"][0]["code"] == "331001"
     assert data["rows"][0]["recordings"] == 2          # 仅本县 passed（pending 不入）
     assert data["total"]["recordings"] == 2
+
+
+# ---------- 派出所下钻（by=station，2026-09-22 三级展开） ----------
+
+def seed_stations(db):
+    db.add_all([
+        PoliceStation(code="331001-001", name="杜桥派出所", region_code="331001", sort_order=1),
+        PoliceStation(code="331001-002", name="大洋派出所", region_code="331001", sort_order=2),
+    ])
+    db.commit()
+
+
+def test_overview_station_attribution(client, db):
+    seed_regions(db)
+    seed_stations(db)
+    # User.police_station 存单位名称：两名民警对上表内派出所，一名空串 → 未指定单位
+    dq = make_user(db, phone="33100100101", name="杜桥民警", region="331001", station="杜桥派出所")
+    dy = make_user(db, phone="33100100102", name="大洋民警", region="331001", station="大洋派出所")
+    lost = make_user(db, phone="33100100103", name="无站民警", region="331001", station="")
+    super_admin = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+
+    t1 = Text(content="请出示身份证", dialect="临海方言", category="police", region_code="331001")
+    t2 = Text(content="今天天气不错", dialect="临海方言", category="life", region_code="331001")
+    db.add_all([t1, t2]); db.commit()
+    db.add_all([
+        Recording(user_id=dq.id, text_id=t1.id, file_path="s1.wav", file_size=100, duration=2.0,
+                  region_code="331001", dialect_code="dh_lh", qc_status="passed"),
+        Recording(user_id=dq.id, text_id=t2.id, file_path="s2.wav", file_size=200, duration=3.0,
+                  region_code="331001", dialect_code="dh_lh", qc_status="passed"),
+        Recording(user_id=dy.id, text_id=t1.id, file_path="s3.wav", file_size=300, duration=4.0,
+                  region_code="331001", dialect_code="dh_lh", qc_status="passed"),
+        # lost 的 pending 录音不入统计
+        Recording(user_id=lost.id, text_id=t2.id, file_path="s4.wav", file_size=999, duration=99.0,
+                  region_code="331001", dialect_code="dh_lh", qc_status="pending"),
+    ])
+    af = AudioFile(file_path="a1.wav", file_name="a1.wav", duration=1.0,
+                   region_code="331001", dialect_code="dh_lh")
+    db.add(af); db.commit()
+    db.add(Annotation(file_id=af.id, annotator_id=dq.id, translation="译文", region_code="331001"))
+    db.commit()
+
+    r = client.get("/api/admin/stats/overview", headers=auth_of(super_admin),
+                   params={"region_code": "331001", "by": "station"})
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["level"] == "station"
+    # 行序：sort_order 排派出所，未指定单位垫底
+    assert [row["name"] for row in data["rows"]] == ["杜桥派出所", "大洋派出所", "未指定单位"]
+    rows = {row["name"]: row for row in data["rows"]}
+    assert rows["杜桥派出所"]["users"] == 1
+    assert rows["杜桥派出所"]["recordings"] == 2
+    assert rows["杜桥派出所"]["seconds"] == 5.0
+    assert rows["杜桥派出所"]["size_bytes"] == 300
+    assert rows["杜桥派出所"]["annotated"] == 1      # 标注按标注人单位归属
+    assert rows["大洋派出所"]["users"] == 1
+    assert rows["大洋派出所"]["recordings"] == 1
+    assert rows["未指定单位"]["users"] == 1
+    assert rows["未指定单位"]["recordings"] == 0     # pending 不入
+    # texts/audio_files 无单位归属维度 → 行内恒 0（前端展示为 —）
+    assert all(row["texts"] == 0 and row["audio_files"] == 0 for row in rows.values())
+    total = data["total"]
+    assert total["users"] == 3
+    assert total["recordings"] == 3
+    assert total["seconds"] == 9.0
+    assert total["texts"] == 2
+    assert total["audio_files"] == 1
+    assert total["annotated"] == 1
+
+
+def test_overview_station_scope_rules(client, db):
+    seed_regions(db)
+    seed_stations(db)
+    seed_overview_data(db)
+    city_admin = make_user(db, phone="33100000001", name="台州管理员", role="admin", region="331000")
+    county_admin = make_user(db, phone="33100100001", name="临海管理员", role="admin", region="331001")
+
+    # 市管下钻本市区县（by=region）→ 该区县单行
+    r1 = client.get("/api/admin/stats/overview", headers=auth_of(city_admin),
+                    params={"region_code": "331001"})
+    assert r1.status_code == 200
+    assert [row["code"] for row in r1.json()["data"]["rows"]] == ["331001"]
+
+    # 市管下钻本市区县（by=station）→ 派出所行
+    r2 = client.get("/api/admin/stats/overview", headers=auth_of(city_admin),
+                    params={"region_code": "331001", "by": "station"})
+    assert r2.status_code == 200
+    assert r2.json()["data"]["level"] == "station"
+
+    # 市级码 + by=station → 400；他市区县 → 403
+    r3 = client.get("/api/admin/stats/overview", headers=auth_of(city_admin),
+                    params={"region_code": "331000", "by": "station"})
+    assert r3.status_code == 400
+    r4 = client.get("/api/admin/stats/overview", headers=auth_of(city_admin),
+                    params={"region_code": "332001", "by": "station"})
+    assert r4.status_code == 403
+
+    # 县管缺省 → 本县派出所行
+    r5 = client.get("/api/admin/stats/overview", headers=auth_of(county_admin),
+                    params={"by": "station"})
+    assert r5.status_code == 200
+    assert r5.json()["data"]["level"] == "station"

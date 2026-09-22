@@ -14,7 +14,6 @@ export interface RegionStatRow {
   texts: number
   audio_files: number
   annotated: number
-  dialect_count: number
 }
 
 export interface OverviewTasks {
@@ -33,8 +32,11 @@ export interface Overview {
   category_counts: Record<string, number>
 }
 
-export function getOverview(regionCode?: string) {
+export function getOverview(regionCode?: string, by?: "region" | "station") {
   return api.get<Overview>("/admin/stats/overview", {
-    params: regionCode ? { region_code: regionCode } : undefined,
+    params: {
+      ...(regionCode ? { region_code: regionCode } : {}),
+      ...(by ? { by } : {}),
+    },
   })
 }

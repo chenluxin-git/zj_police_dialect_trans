@@ -1,20 +1,30 @@
 <script setup lang="ts">
 /**
  * 数据总览（T32 / dome/admin-overview.html 1:1）
- * 6 统计卡 + 任务进度卡 + 类别分布条形 + 区域两级统计表（本辖区金色高亮）
+ * 6 统计卡 + 任务进度卡 + 类别分布条形 + 区域统计表（本辖区金色高亮）
  * 区域下钻：仅 super_admin / 省管展示级联，市管/县管固定自身 scope。
+ * 2026-09-22 三级展开：区域表行内点击展开 市→区县→派出所（懒加载+缓存；
+ * 派出所行按民警单位名称归属，音频素材无单位维度展示为 —）。
  */
 import { computed, onMounted, ref } from "vue"
 import { useUserStore } from "@/stores/user"
 import { api } from "@/api/http"
 import { getOverview } from "@/api/admin/stats"
-import type { Overview } from "@/api/admin/stats"
+import type { Overview, RegionStatRow } from "@/api/admin/stats"
 
 interface RegionNode {
   code: string
   name: string
   level: string
   children: RegionNode[]
+}
+
+/** 展示行：在接口行上追加层级信息（depth 0 根行 / 1 展开子行） */
+interface DisplayRow extends RegionStatRow {
+  depth: number
+  kind: "city" | "district" | "station"
+  expandable: boolean
+  loading: boolean
 }
 
 interface StatCard {
@@ -37,7 +47,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   life: "生活",
   place: "地名",
   custom: "自定义",
-  dirty: "脏话",
+  dirty: "俚语",
 }
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -76,6 +86,11 @@ const overview = ref<Overview | null>(null)
 const regionTree = ref<RegionNode[]>([])
 const cascadeValue = ref<string[]>([])
 
+// 三级展开状态：expanded 已展开行码；childCache 行码→子行（区县行或派出所行）；childLoading 加载中
+const expanded = ref<Set<string>>(new Set())
+const childCache = ref<Map<string, RegionStatRow[]>>(new Map())
+const childLoading = ref<Set<string>>(new Set())
+
 const statsCards = computed<StatCard[]>(() => {
   const t = overview.value?.total
   if (!t) return []
@@ -85,7 +100,6 @@ const statsCards = computed<StatCard[]>(() => {
     { label: "录音总时长", value: formatHours(t.seconds), unit: "小时", delta: `容量约 ${formatBytes(t.size_bytes)}`, cls: "" },
     { label: "音频素材", value: fmtNum(t.audio_files), unit: "条", delta: "标注素材库", cls: "zp-stat--gold" },
     { label: "已标注", value: fmtNum(t.annotated), unit: "条", delta: `标注率 ${pct(t.annotated, t.recordings)}%`, cls: "zp-stat--ok" },
-    { label: "判定为方言", value: fmtNum(t.dialect_count), unit: "条", delta: `占已标注 ${pct(t.dialect_count, t.annotated)}%`, cls: "zp-stat--ok" },
   ]
 })
 
@@ -107,9 +121,49 @@ async function loadRegions() {
   regionTree.value = await api.get<RegionNode[]>("/regions/tree")
 }
 
+/** 根行层级：省级视图根行是市，市/县级视图根行是区县（区县行可再展开派出所） */
+const displayRows = computed<DisplayRow[]>(() => {
+  const ov = overview.value
+  if (!ov) return []
+  const rootKind: "city" | "district" = ov.level === "province" ? "city" : "district"
+  const out: DisplayRow[] = []
+  for (const r of ov.rows) {
+    out.push({ ...r, depth: 0, kind: rootKind, expandable: true,
+               loading: childLoading.value.has(r.code) })
+    if (!expanded.value.has(r.code)) continue
+    const childKind: "district" | "station" = rootKind === "city" ? "district" : "station"
+    for (const c of childCache.value.get(r.code) ?? []) {
+      out.push({ ...c, depth: 1, kind: childKind, expandable: childKind === "district",
+                 loading: childLoading.value.has(c.code) })
+    }
+  }
+  return out
+})
+
+async function toggleExpand(row: DisplayRow) {
+  const code = row.code
+  if (expanded.value.has(code)) {
+    expanded.value = new Set([...expanded.value].filter((c) => c !== code))
+    return
+  }
+  expanded.value = new Set([...expanded.value, code])
+  if (childCache.value.has(code)) return
+  childLoading.value = new Set([...childLoading.value, code])
+  try {
+    const data = row.kind === "city"
+      ? await getOverview(code)                 // 市行 → 区县行
+      : await getOverview(code, "station")      // 区县行 → 派出所行
+    childCache.value = new Map(childCache.value).set(code, data.rows)
+  } finally {
+    childLoading.value = new Set([...childLoading.value].filter((c) => c !== code))
+  }
+}
+
 async function load() {
   loading.value = true
   try {
+    expanded.value = new Set()
+    childCache.value = new Map()
     const code = cascadeValue.value.length
       ? cascadeValue.value[cascadeValue.value.length - 1]
       : undefined
@@ -196,14 +250,14 @@ onMounted(async () => {
     <div class="zp-card">
       <div class="zp-card-head">
         <h2>{{ overview?.total.name ?? "" }} · 区域统计</h2>
-        <span class="zp-card-sub">按区域汇总（本辖区金色高亮）</span>
+        <span class="zp-card-sub">点击展开下级（市→区县→派出所，本辖区金色高亮）</span>
       </div>
       <div class="zp-table-wrap">
         <table class="zp-table">
           <thead>
             <tr>
               <th>区域</th><th>用户数</th><th>录音数</th><th>录音时长</th>
-              <th>音频素材</th><th>已标注</th><th>方言判定</th>
+              <th>音频素材</th><th>已标注</th>
             </tr>
           </thead>
           <tbody>
@@ -214,16 +268,27 @@ onMounted(async () => {
               <td class="num">{{ formatHours(overview?.total.seconds ?? 0) }} h</td>
               <td class="num">{{ fmtNum(overview?.total.audio_files ?? 0) }}</td>
               <td class="num">{{ fmtNum(overview?.total.annotated ?? 0) }}</td>
-              <td class="num">{{ fmtNum(overview?.total.dialect_count ?? 0) }}</td>
             </tr>
-            <tr v-for="r in overview?.rows ?? []" :key="r.code" :style="r.code === ownCode ? 'background:var(--gold-50)' : ''">
-              <td><b v-if="r.code === ownCode">{{ r.name }}（本辖区）</b><span v-else>{{ r.name }}</span></td>
+            <tr v-for="r in displayRows" :key="r.kind + '-' + r.code"
+                :style="r.code === ownCode ? 'background:var(--gold-50)' : ''">
+              <td>
+                <div class="zp-row-tree" :style="{ paddingLeft: 4 + r.depth * 24 + 'px' }">
+                  <button v-if="r.expandable" class="zp-tree-toggle" type="button"
+                          :aria-label="expanded.has(r.code) ? '收起 ' + r.name : '展开 ' + r.name"
+                          @click="toggleExpand(r)">
+                    <span v-if="r.loading" class="zp-tree-loading">…</span>
+                    <span v-else class="zp-tree-tri" :class="{ open: expanded.has(r.code) }">▶</span>
+                  </button>
+                  <span v-else class="zp-tree-leaf" aria-hidden="true"></span>
+                  <b v-if="r.code === ownCode">{{ r.name }}（本辖区）</b>
+                  <span v-else :class="{ 'zp-tree-child': r.depth > 0 }">{{ r.name }}</span>
+                </div>
+              </td>
               <td class="num">{{ fmtNum(r.users) }}</td>
               <td class="num">{{ fmtNum(r.recordings) }}</td>
               <td class="num">{{ formatHours(r.seconds) }} h</td>
-              <td class="num">{{ fmtNum(r.audio_files) }}</td>
+              <td class="num">{{ r.kind === "station" ? "—" : fmtNum(r.audio_files) }}</td>
               <td class="num">{{ fmtNum(r.annotated) }}</td>
-              <td class="num">{{ fmtNum(r.dialect_count) }}</td>
             </tr>
           </tbody>
         </table>
@@ -271,6 +336,46 @@ onMounted(async () => {
 .zp-table .is-total td {
   background: #f7f9fc;
   font-weight: 600;
+}
+.zp-row-tree {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+}
+.zp-tree-toggle {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1;
+  flex: none;
+}
+.zp-tree-toggle:hover {
+  color: var(--navy-700);
+}
+.zp-tree-tri {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.zp-tree-tri.open {
+  transform: rotate(90deg);
+}
+.zp-tree-loading {
+  font-size: 12px;
+}
+.zp-tree-leaf {
+  width: 19px;
+  flex: none;
+  color: var(--line-strong);
+}
+.zp-tree-leaf::before {
+  content: "·";
+}
+.zp-tree-child {
+  color: var(--ink-2);
 }
 @media (max-width: 1080px) {
   .zp-overview-grid {

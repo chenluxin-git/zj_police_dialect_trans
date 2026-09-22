@@ -1,0 +1,7 @@
+.env
+data/
+logs/
+audio_storage/
+__pycache__/
+.venv/
+.pytest_cache/

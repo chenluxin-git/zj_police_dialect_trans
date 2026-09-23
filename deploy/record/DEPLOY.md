@@ -174,6 +174,20 @@ docker compose up -d    # 重建 backend 生效
 
 ### 10.4 升级（新交付包）
 
+**推荐：增量分包 + 一键脚本。** 后端镜像包（`zjpdt-backend-<时间戳>.tar.gz`，docker save 后 gzip）
+与前端包（`record_web<-.时间戳>.tar.gz`）是两个独立文件，与 `update.sh` 放同一目录（如 `/root/upload/`）执行：
+
+```bash
+bash update.sh               # 有什么包升什么；两个都在则先 backend 后 frontend
+bash update.sh --no-backfill # 跳过种子民警补挂单位（默认自动执行，幂等只补空值）
+```
+
+脚本内置：库备份 → 镜像回滚点 → docker load → compose up → 健康等待（失败自动回滚镜像）
+→ 补挂单位 SQL → 前端 record.old 备份/解压/chown/校验。路径不在默认位置时用环境变量覆盖：
+`APP_DIR=/root/zjpdt-record WEB_ROOT=/www/wwwroot/tailect.cn bash update.sh`。
+
+**手动等价流程**（脚本不可用时）：
+
 ```bash
 docker tag zjpdt-backend:latest zjpdt-backend:rollback-$(date +%Y%m%d)    # 先保回滚点
 <按 §10.2 做一次全量备份>

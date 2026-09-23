@@ -14,6 +14,7 @@
 #   record_web.tar.gz           前端产物（解到站点根形成 record/ 子目录）
 #   nginx-record.conf           宝塔站点追加的 location 片段
 #   load.sh                     服务器侧镜像导入+自检
+#   update.sh                   增量升级一键脚本（分包部署：zjpdt-backend-*.tar.gz + record_web*.tar.gz）
 #   DEPLOY.md                   部署手册
 #   MANIFEST.txt                sha256 + git 版本 + 构建命令
 #   最后整体打一个 .tar.gz
@@ -105,8 +106,10 @@ cp deploy/record/server.env.docker  "$PKG/server/.env.docker"
 cp deploy/record/nginx-record.conf  "$PKG/nginx-record.conf"
 cp deploy/record/load.sh            "$PKG/load.sh"
 chmod +x "$PKG/load.sh"
+cp deploy/record/update.sh          "$PKG/update.sh"
+chmod +x "$PKG/update.sh"
 cp deploy/record/DEPLOY.md          "$PKG/DEPLOY.md"
-say "  OK  compose / env 模板 / nginx 片段 / load.sh / DEPLOY.md"
+say "  OK  compose / env 模板 / nginx 片段 / load.sh / update.sh / DEPLOY.md"
 
 # ---------------------------------------------------------------- 6) 清单与总包
 marker "6/6 生成 MANIFEST 并打包"

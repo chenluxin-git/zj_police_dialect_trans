@@ -114,7 +114,7 @@ SQL
     echo "$BF_OUT"
     echo "$BF_OUT" | grep -q 'station_after' \
       || die "补挂 SQL 未执行成功（看上方 mysql 报错）。后端已上线、前端未动——修好后重跑本脚本即可"
-    say "补挂完成（station_before → station_after，0→60 或已补过保持 60）"
+    say "补挂完成（见上方 station_before → station_after；真实区县 20 个×每县 2 民警=40，另 129 条单位挂演示伪区划码无用户不影响）"
   fi
 else
   say "未发现后端包，跳过后端（本次只动前端）"

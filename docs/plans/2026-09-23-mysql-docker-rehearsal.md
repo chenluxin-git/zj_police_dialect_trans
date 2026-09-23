@@ -1,5 +1,7 @@
 # MySQL 改造真机交接计划（Linux + Docker 执行机）
 
+> **执行状态（2026-09-23）**：Task A–D 已在演练机（Ubuntu VM，Docker 29.4.0）执行完毕，全部预期达成——基线 156 passed + 4 skipped；门控集成测试 **5 passed**（含 utf8mb4 中文往返/unique/索引/搬迁 E2E），带库全量 **160 passed**；种子搬迁演练逐表核对 **users 282 / regions 102 / dialects 11 / police_stations 696 = 1091 行**，MySQL 侧 `AUTO_INCREMENT=283`、`ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`、id=1 省超管 UTF-8 字节完好；compose 全家桶冒烟（宿主 80 被 dialect_* 占用，临时 override 改 8080/8443）health ok、种子账号登录、任务下达/区域公告/领文本/录音上传 QC 直通 passed/数据总览全链绿，中文零乱码，`down` 后双卷保留。**Task E（生产切换）待生产部署机择窗口执行。** 下文勾选框不再单独维护，以本状态行为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在有 Docker 的 Linux 机器上完成 MySQL 改造的真机验证（集成测试、搬迁演练、compose 全家桶冒烟）与生产切换（含存量 SQLite 数据搬迁）。

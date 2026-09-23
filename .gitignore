@@ -3,6 +3,12 @@ bt_file/
 record_demo_*.zip
 record_frontend_*.zip
 
+# ---- 部署机本地自签证书（deploy/README 附 openssl 命令按机生成）----
+deploy/certs/
+
+# ---- 演练机本地 compose 端口避让覆盖（80 被同机其他项目占用时用）----
+docker-compose.override.yml
+
 # ---- 系统杂项 ----
 .DS_Store
 Thumbs.db

@@ -1,0 +1,90 @@
+# 宝塔 tailect.cn/record/ 子路径部署专用编排
+# （scripts/export-record-package.sh 会把本文件原样放进交付包，服务器上就叫 docker-compose.yml）
+#
+# 与仓库根 docker-compose.yml 的区别：
+# 1. 只有 backend + mysql 两个服务——前端静态文件由**宝塔 nginx** 直接服务（tailect.cn/record/），
+#    不再需要 web 容器，也就不占 80/443，绝不影响宝塔上已有站点
+# 2. 对外端口只绑 127.0.0.1:8002 给宝塔 nginx 反代；mysql 默认不发布端口（临时调试见注释行）
+# 3. 密钥单点：DATABASE_URL 在这里用 ${MYSQL_PASSWORD:?} 插值拼出，密码只存在包根 .env 一处
+#    （environment 优先级高于 env_file，沿仓库 compose 的既有机制，避免"改了 .env 忘改 URL"）
+# 4. TZ=Asia/Shanghai：镜像内 datetime.now() 默认 UTC，不加这行所有时间戳差 8 小时
+#    （已实测镜像含 tzdata，环境变量即生效，无需改镜像）
+# 5. restart: always：随宿主机/docker 服务自启，宝塔机器重启后容器自动回来
+# 6. 顶层 name: zjpdt-record 锁死项目名——具名卷实际名为 zjpdt-record_app-data /
+#    zjpdt-record_mysql-data，与解压目录名解耦；升级解到新目录也不会起空卷"丢数据"
+#
+# 所有 docker compose 命令必须在包根目录执行（env_file/logs 相对路径以本文件为基准解析）
+name: zjpdt-record
+
+services:
+  backend:
+    image: zjpdt-backend:latest        # 无 build:——服务器离线，只 docker load 不构建
+    container_name: zjpdt-backend
+    env_file: ./server/.env.docker
+    environment:
+      # :? 无默认值——包根 .env 没填对应键，compose 直接拒绝启动（连 ps/logs 都跑不了），
+      # 把"密钥必改"从手册约束变成机制约束
+      - "SECRET_KEY=${SECRET_KEY:?请在包根 .env 设置（openssl rand -hex 32）}"
+      - "DATABASE_URL=mysql+pymysql://zjpdt:${MYSQL_PASSWORD:?请在包根 .env 设置（openssl rand -hex 16）}@mysql:3306/zjpdt?charset=utf8mb4"
+      # 子路径部署：认证回调 302 跳转的前端基地址（config.py frontend_base）
+      - "FRONTEND_BASE=/record/"
+      # ASR 质检上游（契约 POST {base}/asr?diarization=false）；在包根 .env 可覆盖，留空=直通 passed
+      - "ASR_UPSTREAM_BASE=${ASR_UPSTREAM_BASE:-https://1plxo01525881.vicp.fun}"
+      - "TZ=Asia/Shanghai"
+    volumes:
+      - app-data:/data                 # audio_storage / exports / imports 全落卷
+      - ./logs/backend:/app/logs       # 应用日志外挂，宝塔侧直接可看
+    ports:
+      - "127.0.0.1:8002:8000"          # 只绑回环，宝塔 nginx 反代用；绝不能改成 0.0.0.0
+    healthcheck:
+      # 联通性探针：/api/health 由应用直接返回，不查库，避免误判
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      mysql:
+        condition: service_healthy
+    logging:
+      driver: json-file                # 共享的宝塔机器上必须限日志体积，否则慢性吃满磁盘
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: always
+
+  mysql:
+    image: mysql:8.0
+    container_name: zjpdt-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    environment:
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?请在包根 .env 设置（openssl rand -hex 16）}"
+      - "MYSQL_DATABASE=zjpdt"
+      - "MYSQL_USER=zjpdt"
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD:?请在包根 .env 设置}"
+      - "TZ=Asia/Shanghai"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    # 默认不发布端口：备份走 docker compose exec mysqldump（密码就在容器环境里，宿主机不用明文输）。
+    # 临时要用 Navicat 等工具连时放开下面两行（只绑回环，用完注释回去并 up -d 恢复）：
+    # ports:
+    #   - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:?}"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: always
+
+volumes:
+  app-data:
+  mysql-data:

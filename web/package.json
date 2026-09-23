@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build && node scripts/check-es-target.cjs && node scripts/check-menu-routes.mjs",
     "build:record-demo": "vue-tsc -b && vite build --mode record-demo && node scripts/check-es-target.cjs",
+    "build:record": "vue-tsc -b && vite build --mode record-demo --base=/record/ && node scripts/check-es-target.cjs && node scripts/check-menu-routes.mjs",
     "check:es-target": "node scripts/check-es-target.cjs",
     "check:polyfill": "node scripts/check-polyfill.cjs",
     "check:menu": "node scripts/check-menu-routes.mjs",

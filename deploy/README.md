@@ -85,10 +85,14 @@ docker compose ps                                # backend 应为 healthy
 nginx 配置路径见 `deploy/nginx.zhijing.conf`。子路径部署（平台给的是 `https://域名/record/`）需要：
 
 ```bash
-cd web && npm run build -- --base=/record/
+cd web && npm run build:record     # = vite build --mode record-demo --base=/record/ + 双自检
+# 注意 npm run build -- --base= 的参数会被 npm 传给脚本末条命令，vite 收不到——必须用 build:record
 # 后端 .env.docker 设 FRONTEND_BASE=/record/（认证回调 302 依赖它）
 # 放开 deploy/nginx.zhijing.conf 里的 /record/ 段落后重建 web 容器
 ```
+
+宝塔已有站点的服务器不走 web 容器，改用整包交付：`bash scripts/export-record-package.sh`
+（前端静态由宝塔 nginx 直接服务，手册见 `deploy/record/DEPLOY.md`）。
 
 ### 4. 访问日志与留存（规范硬性：应用日志本地留存不少于两年）
 

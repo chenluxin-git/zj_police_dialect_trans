@@ -86,7 +86,7 @@ cd web && npm run build                              # vue-tsc + vite + Chrome80
 - **Docker Compose（推荐）**：证书生成、起停、冒烟清单、备份与运维要点见 [deploy/README.md](deploy/README.md)；
   上架版站点配置为 `deploy/nginx.zhijing.conf`（结构化访问日志 + 安全响应头 + 子路径示例），
   容器环境模板为 `server/.env.zhijing.docker.example`（含 MySQL 可选 profile）
-- **宝塔子路径（如 `/record/`）**：前端 `npm run build -- --mode record-demo --base=/record/`（配合 `web/.env.record-demo` 的 `VITE_API_BASE=/record/api`），路由 base 与登录跳转自动适配构建期 `BASE_URL`；后端需同时设 `FRONTEND_BASE=/record/`（认证回调 302 依赖它）
+- **宝塔子路径（如 `/record/`）**：一键打包走 `bash scripts/export-record-package.sh`（产出镜像 tar + 前端产物 + 宝塔 nginx 片段 + `deploy/record/DEPLOY.md` 手册）；前端单独构建用 `cd web && npm run build:record`（`--base=/record/` + `web/.env.record-demo` 的 `VITE_API_BASE=/record/api`，路由 base 与登录跳转自动适配构建期 `BASE_URL`——注意 `npm run build -- --base=` 的参数会被 npm 传给脚本末条命令，vite 收不到）；后端需同时设 `FRONTEND_BASE=/record/`（认证回调 302 依赖它）
 
 ## 说明
 

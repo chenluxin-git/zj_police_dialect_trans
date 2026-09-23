@@ -164,7 +164,7 @@ def startup_report(*, probe_network: bool = True) -> dict:
             "CORS_ORIGINS": s.cors_origins,
             "音频存储目录": s.audio_storage_path,
             "导出目录": s.export_path,
-            "ASR质检": s.asr_api_url or "<未配置，质检直通>",
+            "ASR质检": s.asr_upstream_base or "<未配置，质检直通>",
             "扫盘白名单SCAN_ROOT": s.scan_root or "<未限制（生产应设）>",
         },
         "浙警智治": {

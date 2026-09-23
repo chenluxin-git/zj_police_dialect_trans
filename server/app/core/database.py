@@ -8,16 +8,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from .config import settings
 
-# SQLite 时需允许跨线程复用连接（FastAPI 同步端点跑在线程池，连接池会跨线程复用）
-_is_sqlite = settings.database_url.startswith("sqlite")
+
+def build_engine(url: str):
+    """按 URL 方言选连接参数：SQLite 允许跨线程复用连接（FastAPI 同步端点跑线程池）；
+    MySQL 加 pool_recycle（wait_timeout 默认 8h，低流量时段空闲连接会被服务端掐断）"""
+    kwargs: dict = {}
+    if url.startswith("sqlite"):
+        kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        kwargs["pool_recycle"] = 3600
+    return create_engine(url, pool_pre_ping=True, echo=False, **kwargs)
+
 
 # 创建数据库引擎
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,   # 连接前检查，避免使用已断开的连接
-    echo=False,           # 生产环境设为False，避免打印SQL语句
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
-)
+engine = build_engine(settings.database_url)
 
 # 创建会话工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

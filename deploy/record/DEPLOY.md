@@ -159,7 +159,9 @@ docker compose logs --tail 100 backend     # 容器 stdout（json-file，已限 
 
 ```bash
 # 每日 mysqldump（密码在容器环境里，宿主机不落明文）：
-cd /opt/zjpdt-record && docker compose exec -T mysql sh -c 'exec mysqldump -uzjpdt -p"$MYSQL_PASSWORD" --single-transaction zjpdt' | gzip > /www/backup/zjpdt-db-$(date +%F).sql.gz
+# --no-tablespaces 必须给：zjpdt 用户无全局 PROCESS 权限，8.0.21+ 缺省会报 "Access denied; you need PROCESS privilege" 中断
+# 收尾自检：zgrep -q 'Dump completed' 备份文件（部分 compose exec 不回传容器退出码，别只看命令返回值）
+cd /opt/zjpdt-record && docker compose exec -T mysql sh -c 'exec mysqldump --no-tablespaces --default-character-set=utf8mb4 -uzjpdt -p"$MYSQL_PASSWORD" --single-transaction zjpdt' | gzip > /www/backup/zjpdt-db-$(date +%F).sql.gz
 # 每周音频/导出卷（zjpdt-record_app-data 卷）：
 docker run --rm -v zjpdt-record_app-data:/data -v /www/backup:/bk alpine tar czf /bk/zjpdt-appdata-$(date +%F).tgz /data
 ```

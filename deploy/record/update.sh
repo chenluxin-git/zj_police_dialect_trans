@@ -50,12 +50,21 @@ docker compose ps >/dev/null 2>&1 || die "docker compose 在 $APP_DIR 执行失�
 if [ -n "$BACKEND_PKG" ]; then
   say "[后端 1/5] 数据库全量备份"
   mkdir -p "$BACKUP_DIR"
-  docker compose exec -T mysql sh -c 'exec mysqldump -uzjpdt -p"$MYSQL_PASSWORD" --single-transaction zjpdt' \
+  # --no-tablespaces 必须给：zjpdt 用户只有库级权限、无全局 PROCESS，8.0.21+ 缺省会报错中断
+  docker compose exec -T mysql sh -c 'exec mysqldump --no-tablespaces --default-character-set=utf8mb4 -uzjpdt -p"$MYSQL_PASSWORD" --single-transaction zjpdt' \
     | gzip > "$BACKUP_DIR/zjpdt-db-$STAMP.sql.gz"
   [ -s "$BACKUP_DIR/zjpdt-db-$STAMP.sql.gz" ] || die "备份文件为空，中止（未做任何变更）"
+  # 部分版本 docker compose exec 不回传容器内退出码（踩过：mysqldump 报错脚本照样继续），
+  # 故用内容标记校验：mysqldump 正常收尾必写 "Dump completed" 尾注
+  zgrep -q 'Dump completed' "$BACKUP_DIR/zjpdt-db-$STAMP.sql.gz" \
+    || die "备份不完整（缺 Dump completed 尾标记），已中止未做任何变更。报 tablespace/PROCESS 权限错时见 DEPLOY.md §10.2 加 --no-tablespaces"
 
-  say "[后端 2/5] 旧镜像留回滚点：$ROLLBACK_TAG"
-  docker tag zjpdt-backend:latest "$ROLLBACK_TAG"
+  if docker image inspect "$ROLLBACK_TAG" >/dev/null 2>&1; then
+    say "[后端 2/5] 回滚点 $ROLLBACK_TAG 今日已存在，保留不覆盖（防重跑把旧镜像回滚点冲掉）"
+  else
+    say "[后端 2/5] 旧镜像留回滚点：$ROLLBACK_TAG"
+    docker tag zjpdt-backend:latest "$ROLLBACK_TAG"
+  fi
 
   say "[后端 3/5] 导入新镜像（docker load）"
   LOAD_OUT="$(docker load -i "$BACKEND_PKG")"
@@ -83,8 +92,10 @@ if [ -n "$BACKEND_PKG" ]; then
 
   if [ "$DO_BACKFILL" = 1 ]; then
     say "[后端] 种子民警补挂单位（幂等：只补 role=user 且单位为空、手机号=区划码+00002/00003 的种子账号）"
-    docker compose exec -T mysql sh -c 'exec mysql -uzjpdt -p"$MYSQL_PASSWORD" zjpdt' <<'SQL'
-SELECT COUNT(*) AS 补挂前有单位的民警数 FROM users WHERE role='user' AND police_station<>'';
+    # --default-character-set=utf8mb4 必须显式给：容器内无 locale，客户端按 latin1 解释语句，
+    # 中文会语法错、写库会变乱码；别名用 ASCII，并用输出标记校验（compose exec 不回传退出码）
+    BF_OUT="$(docker compose exec -T mysql sh -c 'exec mysql --default-character-set=utf8mb4 -uzjpdt -p"$MYSQL_PASSWORD" zjpdt' <<'SQL'
+SELECT COUNT(*) AS station_before FROM users WHERE role='user' AND police_station<>'';
 UPDATE users u
 JOIN (
   SELECT ps.region_code, ps.name,
@@ -97,8 +108,13 @@ SET u.police_station = s.name
 WHERE u.role = 'user'
   AND (u.police_station IS NULL OR u.police_station = '')
   AND u.phone LIKE CONCAT(u.region_code, '%');
-SELECT COUNT(*) AS 补挂后有单位的民警数 FROM users WHERE role='user' AND police_station<>'';
+SELECT COUNT(*) AS station_after FROM users WHERE role='user' AND police_station<>'';
 SQL
+)"
+    echo "$BF_OUT"
+    echo "$BF_OUT" | grep -q 'station_after' \
+      || die "补挂 SQL 未执行成功（看上方 mysql 报错）。后端已上线、前端未动——修好后重跑本脚本即可"
+    say "补挂完成（station_before → station_after，0→60 或已补过保持 60）"
   fi
 else
   say "未发现后端包，跳过后端（本次只动前端）"

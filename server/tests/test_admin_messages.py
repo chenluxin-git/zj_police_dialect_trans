@@ -98,6 +98,94 @@ def test_send_station(client, db):
     assert db.query(MessageRecipient).filter_by(user_id=u2.id).count() == 0
 
 
+# ---------- 按单位多选（stations=[{name, region_code}]，名+区县收紧重名） ----------
+
+def test_send_stations_multi(client, db):
+    seed_regions(db)
+    u1, u2, u3 = make_users(db)
+    super_admin = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+    h = auth_of(super_admin)
+
+    r = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station",
+        "target_value": ["临海市公安局", "乐清市公安局"],
+        "stations": [{"name": "临海市公安局", "region_code": "331001"},
+                     {"name": "乐清市公安局", "region_code": "332001"}],
+        "title": "t", "content": "c",
+    })
+    assert r.json()["data"] == {"sent": 2, "skipped": 0}   # u1 + u3，不含温岭 u2
+    assert db.query(MessageRecipient).filter_by(user_id=u1.id).count() == 1
+    assert db.query(MessageRecipient).filter_by(user_id=u2.id).count() == 0
+    assert db.query(MessageRecipient).filter_by(user_id=u3.id).count() == 1
+
+
+def test_send_stations_disambiguates_dup_names(client, db):
+    """同名单位跨区县：只发所选区县那批人（legacy 名匹配会误伤另一县）"""
+    seed_regions(db)
+    a = make_user(db, phone="33100100003", name="临海城西甲", region="331001", station="城西派出所")
+    b = make_user(db, phone="33200100003", name="乐清城西乙", region="332001", station="城西派出所")
+    super_admin = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+    h = auth_of(super_admin)
+
+    r = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station",
+        "target_value": ["城西派出所"],
+        "stations": [{"name": "城西派出所", "region_code": "331001"}],
+        "title": "t", "content": "c",
+    })
+    assert r.json()["data"] == {"sent": 1, "skipped": 0}
+    assert db.query(MessageRecipient).filter_by(user_id=a.id).count() == 1
+    assert db.query(MessageRecipient).filter_by(user_id=b.id).count() == 0
+
+
+def test_send_stations_scope_skip(client, db):
+    seed_regions(db)
+    u3 = make_user(db, phone="33200100002", name="乐清民警", region="332001", station="乐清市公安局")
+    tz_admin = make_user(db, phone="33100000001", name="台州管理员", role="admin", region="331000")
+    h = auth_of(tz_admin)
+
+    r = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station",
+        "target_value": ["乐清市公安局"],
+        "stations": [{"name": "乐清市公安局", "region_code": "332001"}],
+        "title": "t", "content": "c",
+    })
+    assert r.json()["data"] == {"sent": 0, "skipped": 1}   # 辖区外，scope 兜底全跳过
+    assert db.query(MessageRecipient).filter_by(user_id=u3.id).count() == 0
+
+
+def test_send_stations_empty_400(client, db):
+    seed_regions(db)
+    super_admin = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+    h = auth_of(super_admin)
+
+    r = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station", "target_value": [], "stations": [],
+        "title": "t", "content": "c",
+    })
+    assert r.status_code == 400
+    # 全空白名同样拒绝
+    r2 = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station", "target_value": ["  "],
+        "stations": [{"name": "  ", "region_code": "331001"}],
+        "title": "t", "content": "c",
+    })
+    assert r2.status_code == 400
+
+
+def test_send_stations_bad_region_400(client, db):
+    seed_regions(db)
+    super_admin = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+    h = auth_of(super_admin)
+
+    r = client.post("/api/admin/messages", headers=h, json={
+        "target_type": "station", "target_value": ["临海市公安局"],
+        "stations": [{"name": "临海市公安局", "region_code": "999999"}],
+        "title": "t", "content": "c",
+    })
+    assert r.status_code == 400
+
+
 # ---------- 已发列表：收件数/已读数 ----------
 
 def test_list_sent_messages_read_count(client, db):

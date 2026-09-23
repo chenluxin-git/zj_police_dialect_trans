@@ -29,11 +29,20 @@ def run_seed(db) -> None:
         accounts.append((r.code + "00001", f"{r.name.replace('市', '')}管理员", r.code, "admin"))
     for d in districts:
         accounts.append((d.code + "00001", f"{d.name.replace('市', '')}管理员", d.code, "admin"))
+    # 民警挂本县单位（县内有种子单位时轮转分配，便于按单位筛选/群发验收；无单位的县留空）
+    stations_by_district: dict[str, list[str]] = {}
+    for p in POLICE_STATIONS:
+        stations_by_district.setdefault(p["region_code"], []).append(p["name"])
+    station_by_phone: dict[str, str] = {}
     for d in districts:
+        county_stations = stations_by_district.get(d.code) or []
         for i in (2, 3):
-            accounts.append((d.code + f"0000{i}", f"{d.name.replace('市', '')}民警0{i - 1}", d.code, "user"))
+            phone = d.code + f"0000{i}"
+            if county_stations:
+                station_by_phone[phone] = county_stations[(i - 2) % len(county_stations)]
+            accounts.append((phone, f"{d.name.replace('市', '')}民警0{i - 1}", d.code, "user"))
     for phone, name, region, role in accounts:
         if db.scalar(select(User).where(User.phone == phone)) is None:
             db.add(User(phone=phone, password_hash=hash_password("123456"), real_name=name,
-                       police_station="", region_code=region, role=role))
+                       police_station=station_by_phone.get(phone, ""), region_code=region, role=role))
     db.commit()

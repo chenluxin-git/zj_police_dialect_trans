@@ -11,6 +11,8 @@ import { useUserStore } from "@/stores/user"
 import { usePollingJob } from "@/composables/usePollingJob"
 import { downloadBlob } from "@/composables/useBlobDownload"
 import RegionPicker from "@/components/RegionPicker.vue"
+import StationPicker from "@/components/StationPicker.vue"
+import type { StationPickItem } from "@/components/StationPicker.vue"
 import { api } from "@/api/http"
 import {
   createUser,
@@ -60,10 +62,13 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 
-const allStations = ref<Station[]>([])
-
 // 区域筛选：由 RegionPicker 统一维护（区县码优先，否则地市码；区县管理员只读本辖区）
 const filterRegionCode = ref("")
+
+// 单位筛选（StationPicker linked 单选，随区域联动）：语义仍是名称，listUsers/exportUsers 零改动
+function onStationFilter(items: StationPickItem[]) {
+  filters.station = items.length ? items[0].name : ""
+}
 
 async function load() {
   loading.value = true
@@ -101,10 +106,6 @@ function reset() {
 function onPageChange(p: number) {
   page.value = p
   void load()
-}
-
-async function loadBase() {
-  allStations.value = await api.get<Station[]>("/police_stations")
 }
 
 // ---------- 新增 / 编辑 ----------
@@ -283,7 +284,6 @@ async function downloadTemplate() {
 }
 
 onMounted(() => {
-  void loadBase()
   void load()
 })
 </script>
@@ -315,9 +315,13 @@ onMounted(() => {
         district-placeholder="全部区县"
         style="width: 290px"
       />
-      <el-select v-model="filters.station" placeholder="全部单位" clearable filterable style="width: 180px">
-        <el-option v-for="s in allStations" :key="s.code" :label="s.name" :value="s.name" />
-      </el-select>
+      <StationPicker
+        :region-code="filterRegionCode"
+        clearable
+        placeholder="全部单位"
+        style="width: 180px"
+        @change="onStationFilter"
+      />
       <el-input v-model="filters.real_name" placeholder="姓名 / 手机号" clearable style="width: 180px" />
       <button class="zp-btn zp-btn--primary" type="button" @click="search">查询</button>
       <button class="zp-btn zp-btn--ghost" type="button" @click="reset">重置</button>

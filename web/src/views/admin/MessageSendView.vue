@@ -1,23 +1,18 @@
 <script setup lang="ts">
 /**
  * 消息发送（T33 / dome/admin-message-send.html 1:1）
- * 收件口径 el-segmented：按人员（scope 用户远程搜索）/ 按区域（地市+区县两级下拉，市码=全市）/ 按单位（派出所下拉）
+ * 收件口径 el-segmented：按人员（scope 用户远程搜索）/ 按区域（地市+区县两级下拉，市码=全市）
+ * / 按单位（StationPicker 地市→区县→单位级联多选，名+区县收紧重名）
  * 右侧已发记录（标题 / 时间 / 收件数 / 已读数），行点开查看消息详情；发送成功回显 sent/skipped。
  */
-import { onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { ElMessage } from "element-plus"
 import RegionPicker from "@/components/RegionPicker.vue"
-import { api } from "@/api/http"
+import StationPicker from "@/components/StationPicker.vue"
+import type { StationPickItem } from "@/components/StationPicker.vue"
 import { listUsers } from "@/api/admin/users"
 import { listSentMessages, sendMessage } from "@/api/admin/messages"
 import type { SentMessage } from "@/api/admin/messages"
-
-interface Station {
-  code: string
-  name: string
-  region_code: string
-  sort_order: number
-}
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -39,11 +34,16 @@ const targetTypeOptions = [
 
 const targetType = ref("user")
 const userId = ref<number | null>(null)
-const stationName = ref("")
 const title = ref("")
 const content = ref("")
 
-const stations = ref<Station[]>([])
+// 按单位（StationPicker 统一维护）：codes=多选值（跨区县不碰撞），items=完整项（提交带区县）
+const stationCodes = ref<string[]>([])
+const stationItems = ref<StationPickItem[]>([])
+
+function onStationsChange(items: StationPickItem[]) {
+  stationItems.value = items
+}
 
 // 区域收件：由 RegionPicker 统一维护（只选市 = 全市群发，选到区县 = 区县群发）
 const regionCode = ref("")
@@ -73,7 +73,8 @@ async function submit() {
     ElMessage.warning("请输入内容")
     return
   }
-  let targetValue: number | string
+  let targetValue: number | string | string[]
+  let stations: { name: string; region_code: string }[] | undefined
   if (targetType.value === "user") {
     if (userId.value == null) {
       ElMessage.warning("请选择收件人")
@@ -87,22 +88,58 @@ async function submit() {
     }
     targetValue = regionCode.value
   } else {
-    if (!stationName.value) {
-      ElMessage.warning("请选择单位")
+    if (!stationItems.value.length) {
+      ElMessage.warning("请选择单位（需先选到地市/区县）")
       return
     }
-    targetValue = stationName.value
+    // 名数组仅审计可读，实际收件以后端 stations（名+区县收紧重名）为准
+    targetValue = stationItems.value.map((i) => i.name)
+    stations = stationItems.value.map((i) => ({ name: i.name, region_code: i.region_code }))
   }
   const result = await sendMessage({
     target_type: targetType.value as "user" | "region" | "station",
     target_value: targetValue,
+    stations,
     title: title.value,
     content: content.value,
   })
   ElMessage.success(`发送 ${result.sent} 人 / 越界跳过 ${result.skipped}`)
   title.value = ""
   content.value = ""
+  // 只清单位选择，保留区域（便于同区域连续群发）
+  stationCodes.value = []
+  stationItems.value = []
   void loadSent()
+}
+
+// ---------- 预计收件预览（按单位）：debounce + 序号丢弃过期响应 ----------
+const previewCount = ref<number | null>(null)
+const previewLoading = ref(false)
+let previewSeq = 0
+let previewTimer: number | undefined
+
+watch(stationItems, (items) => {
+  window.clearTimeout(previewTimer)
+  if (!items.length) {
+    previewCount.value = null
+    previewLoading.value = false
+    return
+  }
+  previewTimer = window.setTimeout(() => void runPreview(items), 400)
+})
+
+async function runPreview(items: StationPickItem[]) {
+  const seq = ++previewSeq
+  previewLoading.value = true
+  try {
+    // listUsers 口径与后端 stations 分支一致（region 展开 ∩ scope + 名精确）→ 预览=实际送达
+    const totals = await Promise.all(items.map((i) =>
+      listUsers({ region_code: i.region_code, station: i.name, page: 1, page_size: 1 }).then((d) => d.total)))
+    if (seq !== previewSeq) return
+    previewCount.value = totals.reduce((a, b) => a + b, 0)
+  } finally {
+    if (seq === previewSeq) previewLoading.value = false
+  }
 }
 
 // ---------- 已发记录 ----------
@@ -125,12 +162,7 @@ function openDetail(m: SentMessage) {
   detailVisible.value = true
 }
 
-async function loadBase() {
-  stations.value = await api.get<Station[]>("/police_stations")
-}
-
 onMounted(() => {
-  void loadBase()
   void searchUsers("")
   void loadSent()
 })
@@ -175,19 +207,22 @@ onMounted(() => {
                 district-placeholder="区县（可不选）"
               />
             </div>
-            <el-select
+            <StationPicker
               v-else
-              v-model="stationName"
-              filterable
-              placeholder="选择派出所"
-              style="width: 100%"
-            >
-              <el-option v-for="s in stations" :key="s.code" :label="s.name" :value="s.name" />
-            </el-select>
+              v-model:value="stationCodes"
+              standalone
+              multiple
+              @change="onStationsChange"
+            />
             <p class="zp-hint">
               <template v-if="targetType === 'user'">按人员：向指定民警发送。</template>
               <template v-else-if="targetType === 'region'">按区域：将群发给所选区域（含下级）全部用户。</template>
-              <template v-else>按单位：向该派出所全体用户群发。</template>
+              <template v-else>
+                按单位：可跨区县多选，向所选各单位全体用户群发。
+                <template v-if="previewLoading">（正在统计收件人数…）</template>
+                <b v-else-if="previewCount === 0" style="color: var(--warn)">所选单位暂无用户。</b>
+                <b v-else-if="previewCount !== null">预计收件 {{ previewCount }} 人（以实际发送结果为准）。</b>
+              </template>
             </p>
           </div>
           <div class="zp-field">

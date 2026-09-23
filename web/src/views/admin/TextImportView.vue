@@ -237,20 +237,21 @@ onUnmounted(clearTimer)
           <el-upload
             drag
             :auto-upload="false"
-            :limit="1"
             accept=".txt,.docx"
             :show-file-list="false"
             :on-change="onFileChange"
           >
             <div class="zp-dropzone">
-              <b>点击选择或拖入文件</b><br />
-              支持 .txt / .docx，UTF-8 编码，单文件不超过 5 MB
+              <template v-if="file">
+                <b class="zp-dropzone-file">{{ file.name }}</b><br />
+                <span>{{ fileSizeLabel }} — 点击或拖入可更换文件</span>
+              </template>
+              <template v-else>
+                <b>点击选择或拖入文件</b><br />
+                支持 .txt / .docx，UTF-8 编码，单文件不超过 5 MB
+              </template>
             </div>
           </el-upload>
-          <p class="zp-hint zp-mt-8">
-            已选择：<b style="color: var(--ink)">{{ file ? file.name : "未选择" }}</b>
-            <span v-if="file">（{{ fileSizeLabel }}）</span>
-          </p>
         </div>
 
         <button class="zp-btn zp-btn--primary zp-btn--lg" style="width: 100%" type="button"
@@ -296,5 +297,10 @@ onUnmounted(clearTimer)
 .zp-dropzone b {
   color: var(--navy-700);
   font-size: 14px;
+}
+.zp-dropzone .zp-dropzone-file {
+  color: var(--ink);
+  font-size: 16px;
+  word-break: break-all;
 }
 </style>

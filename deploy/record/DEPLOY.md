@@ -183,8 +183,8 @@ bash update.sh --no-backfill # 跳过种子民警补挂单位（默认自动执�
 ```
 
 脚本内置：库备份 → 镜像回滚点 → docker load → compose up → 健康等待（失败自动回滚镜像）
-→ 补挂单位 SQL → 前端 record.old 备份/解压/chown/校验。路径不在默认位置时用环境变量覆盖：
-`APP_DIR=/root/zjpdt-record WEB_ROOT=/www/wwwroot/tailect.cn bash update.sh`。
+→ 补挂单位 SQL → 前端 record.old 备份/解压/chown/校验。默认作用于 `APP_DIR=/opt/zjpdt-record`、
+`WEB_ROOT=/www/wwwroot/tailect.cn`，部署在别处时用同名环境变量覆盖再执行。
 
 **手动等价流程**（脚本不可用时）：
 

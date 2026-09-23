@@ -15,7 +15,7 @@
 #       → 补挂单位 SQL（幂等） → [前端] record.old 备份 → 解压 → chown → 校验 → 汇总
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/root/zjpdt-record}"
+APP_DIR="${APP_DIR:-/opt/zjpdt-record}"
 WEB_ROOT="${WEB_ROOT:-/www/wwwroot/tailect.cn}"
 BACKUP_DIR="${BACKUP_DIR:-/www/backup}"
 UPLOAD_DIR="$(cd "$(dirname "$0")" && pwd)"

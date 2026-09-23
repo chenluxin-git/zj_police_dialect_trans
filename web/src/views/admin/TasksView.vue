@@ -3,12 +3,13 @@
  * 任务管理（T32 / dome/admin-tasks.html 1:1）
  * 筛选 + 行内进度条（超额金色 / 未启动 warn / 取消置灰）+ 四弹窗（单人/批量/调整/取消）+ 规则说明。
  */
-import { onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import { ElMessage } from "element-plus"
 import { assignTask, assignTaskBatch, listTasks, updateTask } from "@/api/admin/tasks"
 import type { TaskItem } from "@/api/admin/tasks"
 import { listUsers } from "@/api/admin/users"
 import type { UserItem } from "@/api/admin/users"
+import RegionPicker from "@/components/RegionPicker.vue"
 
 const TYPE_LABEL: Record<string, string> = { recording: "录音", annotation: "标注" }
 
@@ -135,16 +136,79 @@ async function submitAssign() {
 const dlgBatch = reactive({ visible: false, type: "recording", target: 50, note: "" })
 const batchUsers = ref<UserItem[]>([])
 const batchSelected = ref<number[]>([])
+// 区域筛选（RegionPicker 统一维护，仅超管渲染选择器；市/县管后端自动限辖区）
+// + 是否含管理员（默认只列民警）+ 组内搜索
+const batchRegionCode = ref("")
+const batchIncludeAdmins = ref(false)
+const batchKeyword = ref("")
+const batchLoading = ref(false)
+let batchLoadSeq = 0 // 连续切换区域时丢弃过期响应
+
+async function loadBatchUsers() {
+  const seq = ++batchLoadSeq
+  batchLoading.value = true
+  try {
+    const base = {
+      page_size: 100,
+      role: batchIncludeAdmins.value ? undefined : "user",
+      region_code: batchRegionCode.value || undefined,
+    }
+    const first = await listUsers({ ...base, page: 1 })
+    if (seq !== batchLoadSeq) return
+    const items = [...first.items]
+    // 后端 page_size 上限 100，按 total 翻页拉全（全省 282 账号 = 3 页）
+    for (let p = 2; p <= Math.ceil(first.total / first.page_size); p++) {
+      items.push(...(await listUsers({ ...base, page: p })).items)
+    }
+    if (seq !== batchLoadSeq) return
+    batchUsers.value = items
+    batchSelected.value = [] // 换区域/换口径清空选择，避免跨区域残留
+  } finally {
+    if (seq === batchLoadSeq) batchLoading.value = false
+  }
+}
+
+// 组内搜索：只过滤展示层，已选但被过滤掉的人保持选中
+const batchShown = computed(() => {
+  const kw = batchKeyword.value.trim()
+  if (!kw) return batchUsers.value
+  return batchUsers.value.filter((u) => u.real_name.includes(kw) || u.phone.includes(kw))
+})
+
+// 全选作用于当前可见集（含搜索过滤），用 Set 合并不干扰其他区域已选
+const batchAllChecked = computed({
+  get: () => batchShown.value.length > 0 && batchShown.value.every((u) => batchSelected.value.includes(u.id)),
+  set: (v: boolean) => {
+    const ids = new Set(batchSelected.value)
+    for (const u of batchShown.value) {
+      if (v) ids.add(u.id)
+      else ids.delete(u.id)
+    }
+    batchSelected.value = [...ids]
+  },
+})
+
+const batchAllIndeterminate = computed(() => {
+  const n = batchShown.value.filter((u) => batchSelected.value.includes(u.id)).length
+  return n > 0 && n < batchShown.value.length
+})
 
 async function openBatch() {
-  const data = await listUsers({ page: 1, page_size: 100 })
-  batchUsers.value = data.items
-  batchSelected.value = []
+  // 先复位（此时弹窗未开，watcher 不触发），再开窗取数
   dlgBatch.type = "recording"
   dlgBatch.target = 50
   dlgBatch.note = ""
+  batchRegionCode.value = ""
+  batchIncludeAdmins.value = false
+  batchKeyword.value = ""
   dlgBatch.visible = true
+  await loadBatchUsers()
 }
+
+// 弹窗开着时切换区域/口径 → 重拉（换区域选择清空在 loadBatchUsers 内）
+watch([batchRegionCode, batchIncludeAdmins], () => {
+  if (dlgBatch.visible) void loadBatchUsers()
+})
 
 async function submitBatch() {
   if (!batchSelected.value.length) {
@@ -347,13 +411,36 @@ onMounted(() => void load())
       </div>
       <div class="zp-field">
         <label>选择民警（已选 {{ batchSelected.length }} 人）<span class="req">*</span></label>
-        <div class="zp-batch-pick">
+        <div class="zp-batch-toolbar">
+          <RegionPicker
+            v-model:value="batchRegionCode"
+            mode="filter"
+            super-only
+            city-placeholder="全部地市"
+            district-placeholder="全部区县"
+            style="width: 290px"
+          />
+          <el-checkbox v-model="batchAllChecked" :indeterminate="batchAllIndeterminate" :disabled="!batchShown.length">
+            全选{{ batchKeyword.trim() ? "（筛选结果）" : "" }}
+          </el-checkbox>
+          <el-switch v-model="batchIncludeAdmins" active-text="含管理员" />
+        </div>
+        <el-input
+          v-model="batchKeyword"
+          placeholder="搜索姓名 / 手机号"
+          clearable
+          style="width: 100%; margin-bottom: 8px"
+        />
+        <div class="zp-batch-pick" v-loading="batchLoading">
           <el-checkbox-group v-model="batchSelected">
-            <el-checkbox v-for="u in batchUsers" :key="u.id" :value="u.id" style="display: block; height: 30px">
+            <el-checkbox v-for="u in batchShown" :key="u.id" :value="u.id" style="display: block; height: 30px">
               {{ u.real_name }} · {{ u.police_station || "—" }}（{{ u.phone }}）
+              <span v-if="u.role !== 'user'" class="zp-tag zp-tag--warn" style="margin-left: 4px">
+                {{ u.role === "super_admin" ? "超管" : "管理员" }}
+              </span>
             </el-checkbox>
           </el-checkbox-group>
-          <div v-if="!batchUsers.length" class="zp-empty"><p>辖区暂无民警</p></div>
+          <div v-if="!batchLoading && !batchShown.length" class="zp-empty"><p>该区域暂无民警</p></div>
         </div>
       </div>
       <p class="zp-hint">已有同类型进行中任务的民警，指标将被调整；其余民警新建任务，并逐一发送站内消息通知。</p>
@@ -423,6 +510,13 @@ onMounted(() => void load())
   color: var(--ink-2);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+.zp-batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 .zp-batch-pick {
   border: 1px solid var(--line);

@@ -2,6 +2,7 @@
 data/
 logs/
 audio_storage/
+exports/
 __pycache__/
 .venv/
 .pytest_cache/

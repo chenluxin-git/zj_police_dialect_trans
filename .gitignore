@@ -1,0 +1,8 @@
+# ---- 宝塔演示部署的传输产物与暂存目录（由源码+构建再生，不入库）----
+bt_file/
+record_demo_*.zip
+record_frontend_*.zip
+
+# ---- 系统杂项 ----
+.DS_Store
+Thumbs.db

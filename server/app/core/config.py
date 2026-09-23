@@ -24,9 +24,11 @@ class Settings(BaseSettings):
     # ---------- CORS 配置（逗号分隔白名单） ----------
     cors_origins: str = "http://localhost:5173"
 
-    # ---------- ASR 方言转译配置（asr_api_url 为空 = 质检停用） ----------
-    asr_api_url: str = ""
-    asr_timeout: int = 30
+    # ---------- ASR 方言转译配置（asr_upstream_base 为空 = 质检停用） ----------
+    # 契约对齐 new_tailect：POST {base}/asr?diarization=false，multipart 字段 file，响应 {"text"}
+    asr_upstream_base: str = "https://1plxo01525881.vicp.fun"
+    asr_timeout: int = 300
+    asr_verify_ssl: bool = False  # 上游为内网穿透自签证书，默认不校验
 
     # ---------- 质检配置 ----------
     qc_similarity_threshold: float = 0.5

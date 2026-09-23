@@ -79,7 +79,7 @@ async def on_startup() -> None:
     from .utils.seed import run_seed
     with SessionLocal() as db:
         run_seed(db)
-    # T9 接入: 后台质检循环（60s 一轮；asr_api_url 空时直通，见 services/qc.py）
+    # T9 接入: 后台质检循环（60s 一轮；asr_upstream_base 空时直通，见 services/qc.py）
     import asyncio
     from .services.qc import qc_loop
     asyncio.create_task(qc_loop())

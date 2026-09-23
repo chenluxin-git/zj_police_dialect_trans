@@ -20,6 +20,7 @@ from ..core.config import settings
 from ..core.database import get_db
 from ..models import Dialect, Recording, Text, TextAssignment, User
 from ..schemas.recording import ApiResponse, PageData, RecordingItem, UploadResultData
+from ..services.qc import trigger_qc
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recordings", tags=["录音"])
@@ -105,6 +106,7 @@ async def upload_recording(
     if assignment is not None:  # 上传成功即释放分配
         db.delete(assignment)
     db.commit()
+    trigger_qc(rec.id)  # 适时质检：录完即后台发起，不等 60s 扫描轮（qc_loop 仍兜底）
     logger.info("用户 %s 录音上传成功 recording=%s text=%s", current_user.id, rec.id, text_id)
     return ApiResponse[UploadResultData](data=UploadResultData(
         id=rec.id, duration=duration, file_size=rec.file_size, qc_status="pending"))

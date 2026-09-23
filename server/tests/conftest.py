@@ -1,7 +1,7 @@
 import os
 os.environ["DATABASE_URL"] = "sqlite://"   # 内存库
 os.environ["AUDIO_STORAGE_PATH"] = "./test_audio"
-os.environ["ASR_API_URL"] = ""             # 默认停用质检，QC 任务用例内再覆盖
+os.environ["ASR_UPSTREAM_BASE"] = ""   # 默认停用质检，QC 任务用例内再覆盖
 
 import warnings
 import pytest
@@ -38,6 +38,13 @@ def client(db):
         tc = TestClient(app)
     yield tc
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+def _mute_qc_trigger(monkeypatch):
+    """适时质检副作用默认静默：上传端点会起真线程跑 _run_one，而模块级 SessionLocal
+    绑的是另一套导入时内存引擎（无表）→ 线程内 no such table 刷 UnhandledThreadException。
+    质检逻辑由 test_qc.py 直接同步调 _run_one/process_pending 覆盖，不依赖端点触发。"""
+    monkeypatch.setattr("app.api.recordings.trigger_qc", lambda rec_id: None)
 
 def make_user(db, phone="33100400002", name="测试民警", role="user", region="331004", station="临海市公安局××派出所"):
     from app.models.social import User  # T2 才落地该模块，必须函数体内延迟导入

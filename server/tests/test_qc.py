@@ -3,7 +3,7 @@
 # 须 monkeypatch 指向"绑定当前 db fixture 引擎"的 sessionmaker（db.get_bind() 现场构造；
 # 不可 from tests.conftest import TestingSession——python -m pytest 下 conftest 会被
 # conftest / tests.conftest 双实例化，后者另建内存引擎导致 no such table）；启用质检须同时
-# monkeypatch settings.asr_api_url 非空（settings 导入时已实例化，改 os.environ 无效）
+# monkeypatch settings.asr_upstream_base 非空（settings 导入时已实例化，改 os.environ 无效）
 import os
 
 from sqlalchemy.orm import sessionmaker
@@ -34,7 +34,7 @@ def patch_engine(monkeypatch, db):
 
 
 def enable_qc(monkeypatch, db, asr):
-    monkeypatch.setattr("app.core.config.settings.asr_api_url", "http://fake-asr")
+    monkeypatch.setattr("app.core.config.settings.asr_upstream_base", "http://fake-asr")
     patch_engine(monkeypatch, db)
     monkeypatch.setattr("app.services.qc.call_asr", asr)
 
@@ -115,7 +115,7 @@ def test_qc_retry_cap_skips(db, tmp_path, monkeypatch):
 
 
 def test_qc_disabled_direct_pass(db, tmp_path, monkeypatch):
-    monkeypatch.setattr("app.core.config.settings.asr_api_url", "")  # 质检停用
+    monkeypatch.setattr("app.core.config.settings.asr_upstream_base", "")  # 质检停用
     patch_engine(monkeypatch, db)
     u, t, rec, wav = make_pending(db, tmp_path)
     from app.services.qc import process_pending
@@ -123,3 +123,60 @@ def test_qc_disabled_direct_pass(db, tmp_path, monkeypatch):
     db.expire_all()
     assert db.get(Recording, rec.id).qc_status == "passed"         # 直通
     assert db.query(QCLog).count() == 0                            # 不写质检日志
+
+
+# ---------- 适时质检（录完即触发）：_run_one 为 trigger_qc 的线程执行体，此处同步直调 ----------
+
+def test_qc_trigger_one_pass(db, tmp_path, monkeypatch):
+    enable_qc(monkeypatch, db, lambda p: "下雨了，衣裳好收收了")
+    u, t, rec, wav = make_pending(db, tmp_path)
+    from app.services.qc import _run_one
+    _run_one(rec.id)
+    db.expire_all()
+    assert db.get(Recording, rec.id).qc_status == "passed"
+    assert db.query(QCLog).one().result == "passed"
+
+
+def test_qc_trigger_one_disabled_direct_pass(db, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.core.config.settings.asr_upstream_base", "")  # 停用：单条直通
+    patch_engine(monkeypatch, db)
+    u, t, rec, wav = make_pending(db, tmp_path)
+    from app.services.qc import _run_one
+    _run_one(rec.id)
+    db.expire_all()
+    assert db.get(Recording, rec.id).qc_status == "passed"
+    assert db.query(QCLog).count() == 0
+
+
+def test_qc_trigger_one_double_run_guarded(db, tmp_path, monkeypatch):
+    """在制防重入：同条在处理中重复触发应跳过（不双跑）"""
+    import threading as _th
+    started = _th.Event()
+    release = _th.Event()
+
+    def slow_asr(p):
+        started.set()
+        release.wait(timeout=2)
+        return "下雨了，衣裳好收收了"
+
+    enable_qc(monkeypatch, db, slow_asr)
+    u, t, rec, wav = make_pending(db, tmp_path)
+    from app.services import qc
+    holder = {}
+
+    def worker():
+        with qc.SessionLocal() as s:
+            r = s.get(Recording, rec.id)
+            qc._process_guarded(s, r)
+        holder["done"] = True
+
+    th = _th.Thread(target=worker)
+    th.start()
+    started.wait(timeout=2)          # 确认已进入 asr 调用（已占住在制位）
+    qc._run_one(rec.id)              # 二次触发：应被防重入挡下，静默返回
+    release.set()
+    th.join(timeout=2)
+    db.expire_all()
+    assert db.get(Recording, rec.id).qc_status == "passed"         # 第一次跑完成
+    assert db.query(QCLog).filter_by(recording_id=rec.id).count() == 1  # 只跑了一次
+    assert holder.get("done") is True

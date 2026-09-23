@@ -30,9 +30,9 @@
 
 | 层 | 技术 |
 |---|---|
-| 后端 | Python 3.10 · FastAPI · SQLAlchemy 2.0 · SQLite · JWT |
+| 后端 | Python 3.10 · FastAPI · SQLAlchemy 2.0 · MySQL 8（开发默认 SQLite）· JWT |
 | 前端 | Vue 3 · TypeScript · Element Plus · Vite |
-| 质检 | 可选 ASR HTTP 接口（`ASR_API_URL` 留空则直通通过） |
+| 质检 | 可选 ASR HTTP 接口（`ASR_UPSTREAM_BASE` 留空则直通通过） |
 | 部署 | Docker Compose（backend: python3.10-slim + ffmpeg；web: node 构建 → nginx） |
 
 ## 目录结构

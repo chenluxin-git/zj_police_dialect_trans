@@ -47,9 +47,17 @@ docker compose down -v           # 停止并清空数据（慎）
 
 ## 运维要点
 
-- **数据备份**：全部在 `app-data` 卷（`/data/app.db` + `/data/audio_storage` + `/data/exports` + `/data/text_imports` + `/data/audio_imports` 侧车台账）。备份即 `docker run --rm -v zj_police_dialect_trans_app-data:/data -v $PWD:/bk alpine tar czf /bk/backup.tgz /data`
+- **数据备份**：业务库在 `mysql-data` 卷，音频/导出包/侧车台账在 `app-data` 卷（`/data/audio_storage` + `/data/exports` + `/data/text_imports` + `/data/audio_imports`）。备份即两条：`docker run --rm -v zj_police_dialect_trans_mysql-data:/data -v $PWD:/bk alpine tar czf /bk/mysql.tgz /data` 与 `docker run --rm -v zj_police_dialect_trans_app-data:/data -v $PWD:/bk alpine tar czf /bk/appdata.tgz /data`
+- **存量数据搬迁（SQLite → MySQL，一次性）**：老部署的 `/data/app.db`（app-data 卷内）数据搬入 MySQL：
+  ```bash
+  docker compose up -d db                                # 先只起库
+  docker compose run --rm backend python -m scripts.sqlite_to_mysql \
+      --sqlite /data/app.db --mysql "$DATABASE_URL"
+  docker compose up -d                                   # 起全家并按冒烟清单验证
+  ```
+- **MySQL 改密**：`MYSQL_PASSWORD`（compose 注入）与 `.env.docker` 的 `DATABASE_URL` 两处必须同步
 - **扫盘功能**：白名单根目录默认 `/data/scan`（`SCAN_ROOT`）——服务器扫盘导入只接受该目录内路径；用时先进卷建目录放音频：`docker compose exec backend mkdir -p /data/scan`
-- **启用 ASR 质检**：`server/.env.docker` 填 `ASR_API_URL=...` → `docker compose up -d backend` 重建；留空时上传直通 passed
+- **启用 ASR 质检**：`server/.env.docker` 填 `ASR_UPSTREAM_BASE=...` → `docker compose up -d backend` 重建；留空时上传直通 passed
 - **内网/离线机**：外网机 `docker save` 两个镜像拷入 `docker load`；npm/pip 已走国内镜像源（Dockerfile 内注明可改）
 - **改密钥**：`SECRET_KEY` 变更后所有已发 token 立即失效（用户需重新登录），不影响数据
 - **本机开发形态**：后端 `server/.venv/Scripts/python -m uvicorn app.main:app --port 8000`，前端 `web/` 下 `npm run dev`（vite 代理 /api → 8000，见 vite.config.ts）

@@ -1,6 +1,24 @@
-# 浙江公安方言语料采集平台——双容器编排
-# 用法见 deploy/README.md（证书生成、SECRET_KEY 更换、冒烟清单）
+# 浙江公安方言语料采集平台——三容器编排（db + backend + web）
+# 用法见 deploy/README.md（证书生成、SECRET_KEY 更换、MySQL 密码、存量搬迁、冒烟清单）
 services:
+  db:
+    image: mysql:8.0
+    container_name: zjpdt-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-in-prod}
+      MYSQL_DATABASE: zjpdt
+      MYSQL_USER: zjpdt
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-prod}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
   backend:
     build: ./server
     container_name: zjpdt-backend
@@ -9,9 +27,12 @@ services:
       # 优先级高于 env_file；部署机在 shell 注入或改这里
       - SECRET_KEY=${SECRET_KEY:-change-me-in-prod}
     volumes:
-      - app-data:/data          # app.db + audio_storage + exports 全部落卷
+      - app-data:/data          # audio_storage + exports + 侧车台账落卷（业务库在 MySQL）
     expose:
       - "8000"                  # 仅 compose 网内可见，由 web 反代对外
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -28,3 +49,4 @@ services:
 
 volumes:
   app-data:
+  mysql-data:

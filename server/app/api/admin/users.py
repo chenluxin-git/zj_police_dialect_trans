@@ -10,7 +10,7 @@
 import io
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...core.database import get_db
+from ...services import audit
 from ...core.security import hash_password
 from ...models import Recording, Region, Task, User
 from ...schemas import ok
@@ -115,7 +116,7 @@ def list_users(
 
 
 @router.post("")
-def create_user(body: UserCreateIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+def create_user(body: UserCreateIn, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     if not PHONE_RE.fullmatch(body.phone):
         raise HTTPException(400, "手机号必须为11位数字")
     if body.role not in VALID_ROLES:
@@ -135,6 +136,10 @@ def create_user(body: UserCreateIn, admin: User = Depends(require_admin), db: Se
     db.add(user)
     db.commit()
     db.refresh(user)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="新增用户", user=admin, request=request,
+                      operate_condition=(f"执行了[新增用户]功能，操作参数为[账号：{user.phone}"
+                                         f"||姓名：{user.real_name}||角色：{user.role}||区域：{user.region_code}]。"),
+                      display=f"用户ID={user.id}", data_level=2)
     return ok({"id": user.id, "phone": user.phone, "real_name": user.real_name,
                "role": user.role, "region_code": user.region_code,
                "police_station": user.police_station,
@@ -142,7 +147,7 @@ def create_user(body: UserCreateIn, admin: User = Depends(require_admin), db: Se
 
 
 @router.put("/{user_id}")
-def update_user(user_id: int, body: UserUpdateIn,
+def update_user(user_id: int, body: UserUpdateIn, request: Request,
                 admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if user is None:
@@ -172,13 +177,20 @@ def update_user(user_id: int, body: UserUpdateIn,
         user.password_hash = hash_password(body.password)
     db.commit()
     db.refresh(user)
+    changed = [k for k, v in (("real_name", body.real_name), ("police_station", body.police_station),
+                              ("region_code", body.region_code), ("role", body.role),
+                              ("password", body.password)) if v is not None]
+    audit.queue_audit(operate_type=audit.OP_UPDATE, operate_name="用户修改", user=admin, request=request,
+                      operate_condition=(f"执行了[修改用户]功能，操作参数为[用户ID：{user_id}"
+                                         f"||变更字段：{'/'.join(changed) or '无'}]。"),
+                      display=f"用户：{user.real_name}（{user.role}）", data_level=2)
     return ok({"id": user.id, "phone": user.phone, "real_name": user.real_name,
                "role": user.role, "region_code": user.region_code,
                "police_station": user.police_station})
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_user(user_id: int, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(404, "用户不存在")
@@ -191,11 +203,15 @@ def delete_user(user_id: int, admin: User = Depends(require_admin), db: Session 
         raise HTTPException(400, "该用户已有录音记录，无法删除")
     db.delete(user)
     db.commit()
+    audit.queue_audit(operate_type=audit.OP_DELETE, operate_name="用户删除", user=admin, request=request,
+                      operate_condition=f"执行了[删除用户]功能，操作参数为[用户ID：{user_id}||区域：{user.region_code}]。",
+                      display=f"删除用户：{user.real_name}", data_level=2)
     return ok(msg="删除成功")
 
 
 @router.get("/export")
 def export_users(
+    request: Request,
     real_name: str | None = Query(None),
     phone: str | None = Query(None),
     role: str | None = Query(None),
@@ -225,6 +241,10 @@ def export_users(
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
+    audit.queue_audit(operate_type=audit.OP_EXPORT, operate_name="用户清单导出", user=admin, request=request,
+                      operate_condition=(f"执行了[用户清单导出]功能，操作参数为[姓名：{real_name or '全部'}"
+                                         f"||角色：{role or '全部'}||区域：{region_code or '全部'}]。"),
+                      display=f"导出 {len(users)} 条用户记录", data_level=2)
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

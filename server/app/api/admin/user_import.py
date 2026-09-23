@@ -13,7 +13,7 @@ import logging
 import re
 import threading
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from sqlalchemy import select
@@ -23,6 +23,7 @@ from ...core.database import SessionLocal, get_db
 from ...core.security import hash_password
 from ...models import Region, User, UserImportBatch
 from ...schemas import ok
+from ...services import audit
 from ..deps import require_admin, resolve_scope
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ def download_template(admin: User = Depends(require_admin)):
 
 
 @router.post("/import")
-async def import_users(file: UploadFile = File(...),
+async def import_users(request: Request, file: UploadFile = File(...),
                        admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     if not (file.filename or "").lower().endswith(".xlsx"):
         raise HTTPException(400, "仅支持 .xlsx 文件")
@@ -96,6 +97,10 @@ async def import_users(file: UploadFile = File(...),
     scope = resolve_scope(db, admin)   # 请求会话内先取好，线程里不再依赖请求对象
     threading.Thread(target=_process_batch, args=(batch.id, rows, scope),
                      daemon=True, name=f"import-users-{batch.id}").start()
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="用户批量导入", user=admin, request=request,
+                      operate_condition=(f"执行了[用户批量开户导入]功能，操作参数为[文件：{file.filename}"
+                                         f"||总行数：{len(rows)}]。"),
+                      display=f"导入批次ID={batch.id}", data_level=2)
     return ok({"batch_id": batch.id})
 
 

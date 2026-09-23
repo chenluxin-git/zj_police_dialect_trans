@@ -14,17 +14,8 @@ import {
   type AssignedText,
 } from "@/api/texts"
 import { uploadRecording } from "@/api/recordings"
+import { categoryLabel, categoryTagClass } from "@/constants/category"
 import Recorder from "@/components/Recorder.vue"
-
-const CATEGORY: Record<string, { label: string; cls: string }> = {
-  police: { label: "警情", cls: "zp-tag--blue" },
-  life: { label: "生活", cls: "zp-tag--green" },
-  dirty: { label: "俚语", cls: "zp-tag--warn" },
-  place: { label: "地名", cls: "zp-tag--gold" },
-  custom: { label: "自定义", cls: "zp-tag--gray" },
-}
-const catLabel = (c: string) => CATEGORY[c]?.label || c
-const catCls = (c: string) => CATEGORY[c]?.cls || "zp-tag--gray"
 
 const steps = ["领取文本", "开始录音", "上传", "质检入库"]
 
@@ -226,7 +217,7 @@ onUnmounted(() => {
     <div class="zp-card-head">
       <h2>本次文本</h2>
       <template v-if="text">
-        <span class="zp-tag" :class="catCls(text.category)">{{ catLabel(text.category) }}</span>
+        <span class="zp-tag" :class="categoryTagClass(text.category)">{{ categoryLabel(text.category) }}</span>
         <span class="zp-tag zp-tag--gray">{{ text.dialect || "通用" }}</span>
         <span class="zp-card-sub" style="margin-left: auto; color: var(--warn)">
           分配剩余 <b class="zp-serif" style="font-size: 16px">{{ fmt(countdown) }}</b>，超时自动释放

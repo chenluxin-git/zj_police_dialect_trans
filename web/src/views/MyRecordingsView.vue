@@ -3,9 +3,11 @@
  * 我的录音（dome/my-recordings.html 1:1）：类别/质检状态/搜索筛选 + 表格
  * 质检列双色标签；行内试听（audioManager 单声道）/下载（带 token 转 blob）/删除（提示进度扣减）
  */
-import { onMounted, onUnmounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { useAudioStore } from "@/stores/audio"
+import { useBlobPlayer, downloadBlob } from "@/composables/useBlobDownload"
+import { CATEGORY_OPTIONS, categoryLabel, categoryTagClass } from "@/constants/category"
+import { QC_MINE_FILTER_OPTIONS, qcLabel, qcTagClass } from "@/constants/qc"
 import {
   deleteRecording,
   fetchRecordingBlob,
@@ -13,17 +15,7 @@ import {
   type RecordingItem,
 } from "@/api/recordings"
 
-const CATEGORY: Record<string, { label: string; cls: string }> = {
-  police: { label: "警情", cls: "zp-tag--blue" },
-  life: { label: "生活", cls: "zp-tag--green" },
-  dirty: { label: "俚语", cls: "zp-tag--warn" },
-  place: { label: "地名", cls: "zp-tag--gold" },
-  custom: { label: "自定义", cls: "zp-tag--gray" },
-}
-const catLabel = (c: string) => CATEGORY[c]?.label || c
-const catCls = (c: string) => CATEGORY[c]?.cls || "zp-tag--gray"
-
-const audio = useAudioStore()
+const audio = useBlobPlayer()
 const items = ref<RecordingItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -32,8 +24,6 @@ const category = ref("")
 const qcStatus = ref("")
 const keyword = ref("")
 const loading = ref(false)
-
-let listenUrl = ""
 
 function fmtDur(s: number) {
   const m = Math.floor(s / 60)
@@ -51,9 +41,6 @@ function fmtDateTime(iso: string) {
   const mi = String(d.getMinutes()).padStart(2, "0")
   return `${mm}-${dd} ${hh}:${mi}`
 }
-const qcLabel = (s: string) => (s === "passed" ? "已通过" : "待质检")
-const qcCls = (s: string) => (s === "passed" ? "zp-tag--green" : "zp-tag--warn")
-
 async function load() {
   loading.value = true
   try {
@@ -89,22 +76,12 @@ function onPageChange(p: number) {
 
 async function listen(row: RecordingItem) {
   const blob = await fetchRecordingBlob(row.file_url)
-  const url = URL.createObjectURL(blob)
-  audio.play(url)
-  if (listenUrl) URL.revokeObjectURL(listenUrl)
-  listenUrl = url
+  audio.play(blob)
 }
 
 async function download(row: RecordingItem) {
   const blob = await fetchRecordingBlob(row.file_url)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `recording_${row.id}.wav`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(blob, `recording_${row.id}.wav`)
 }
 
 async function remove(row: RecordingItem) {
@@ -119,15 +96,15 @@ async function remove(row: RecordingItem) {
 }
 
 onMounted(() => void load())
-onUnmounted(() => {
-  if (listenUrl) URL.revokeObjectURL(listenUrl)
-})
 </script>
 
 <template>
   <div class="zp-page-head">
-    <h1>我的录音</h1>
+    <h1>历史录音</h1>
     <span class="sub">共 {{ total }} 条</span>
+    <div class="zp-head-actions">
+      <router-link class="zp-btn zp-btn--ghost" to="/record/work">← 返回开始录音</router-link>
+    </div>
   </div>
 
   <div class="zp-alert zp-alert--info zp-mb-16">
@@ -139,17 +116,10 @@ onUnmounted(() => {
   <!-- 筛选栏 -->
   <div class="zp-filter">
     <select class="zp-select" v-model="category" aria-label="类别">
-      <option value="">全部类别</option>
-      <option value="police">警情</option>
-      <option value="life">生活</option>
-      <option value="dirty">俚语</option>
-      <option value="place">地名</option>
-      <option value="custom">自定义</option>
+      <option v-for="c in CATEGORY_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
     </select>
     <select class="zp-select" v-model="qcStatus" aria-label="质检状态">
-      <option value="">全部状态</option>
-      <option value="pending">待质检</option>
-      <option value="passed">已通过</option>
+      <option v-for="q in QC_MINE_FILTER_OPTIONS" :key="q.value" :value="q.value">{{ q.label }}</option>
     </select>
     <input
       class="zp-input"
@@ -181,12 +151,12 @@ onUnmounted(() => {
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.text_content }}</td>
-            <td><span class="zp-tag" :class="catCls(row.category)">{{ catLabel(row.category) }}</span></td>
+            <td><span class="zp-tag" :class="categoryTagClass(row.category)">{{ categoryLabel(row.category) }}</span></td>
             <td>{{ row.dialect }}</td>
             <td class="num">{{ fmtDur(row.duration) }}</td>
             <td class="num">{{ fmtSize(row.file_size) }}</td>
             <td class="num">{{ fmtDateTime(row.created_at) }}</td>
-            <td><span class="zp-tag" :class="qcCls(row.qc_status)">{{ qcLabel(row.qc_status) }}</span></td>
+            <td><span class="zp-tag" :class="qcTagClass(row.qc_status)">{{ qcLabel(row.qc_status) }}</span></td>
             <td class="zp-text-right">
               <button class="zp-btn zp-btn--text" type="button" @click="listen(row)">播放</button>
               <button class="zp-btn zp-btn--text" type="button" @click="download(row)">下载</button>

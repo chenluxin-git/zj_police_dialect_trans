@@ -2,6 +2,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite://"   # 内存库
 os.environ["AUDIO_STORAGE_PATH"] = "./test_audio"
 os.environ["ASR_UPSTREAM_BASE"] = ""   # 默认停用质检，QC 任务用例内再覆盖
+os.environ["ZHIJING_AUDIT_QUEUE_ENABLED"] = "false"   # 审计队列默认开：queue_audit 走模块级 SessionLocal（导入时引擎无表），测试统一静默
 
 import warnings
 import pytest

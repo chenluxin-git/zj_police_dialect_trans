@@ -38,7 +38,7 @@
 ## 目录结构
 
 ```
-server/              FastAPI 后端（app/ 源码、tests/ 148 个 pytest 用例）
+server/              FastAPI 后端（app/ 源码、tests/ pytest 用例；scripts/ 含 SQLite→MySQL 搬迁脚本）
 web/                 Vue 3 前端（vite 代理 /api → 127.0.0.1:8000）
 deploy/              部署一页纸（README.md）与证书目录
 docker-compose.yml   双容器编排（443 自签 nginx + /api 反代）
@@ -60,9 +60,15 @@ npm install
 npm run dev            # http://localhost:5173（vite 已代理 /api）
 
 # 测试与构建
-cd server && .venv/Scripts/python -m pytest -q      # 148 passed
-cd web && npm run build                              # vue-tsc + vite
+cd server && .venv/Scripts/python -m pytest -q      # 156 passed + 4 skipped（设 TEST_MYSQL_URL 时 160 passed）
+cd web && npm run build                              # vue-tsc + vite + Chrome80 兼容体检
 ```
+
+> **已接入浙警智治（用户域 + 省厅零信任）**：平台免二次登录（数字证书）、零信任联动服务、
+> 审计上报（SM3 校验码 + 失败本地重推）、统一用户/部门同步、机构码→区划码映射。
+> 对接参数与联调步骤见 [`docs/deploy-zhijing-onboarding.md`](docs/deploy-zhijing-onboarding.md)；
+> 需要省厅提供的信息见 [`docs/zhijing-integration-request.md`](docs/zhijing-integration-request.md)；
+> 交付前预检：`powershell -ExecutionPolicy Bypass -File scripts\zhijing-preflight.ps1`。
 
 ## 种子账号（密码均为 `123456`）
 
@@ -77,10 +83,14 @@ cd web && npm run build                              # vue-tsc + vite
 
 ## 部署
 
-- **Docker Compose（推荐）**：证书生成、起停、冒烟清单、备份与运维要点见 [deploy/README.md](deploy/README.md)
-- **宝塔子路径（如 `/record/`）**：前端 `npm run build -- --mode record-demo --base=/record/`（配合 `web/.env.record-demo` 的 `VITE_API_BASE=/record/api`），路由 base 与登录跳转自动适配构建期 `BASE_URL`
+- **Docker Compose（推荐）**：证书生成、起停、冒烟清单、备份与运维要点见 [deploy/README.md](deploy/README.md)；
+  上架版站点配置为 `deploy/nginx.zhijing.conf`（结构化访问日志 + 安全响应头 + 子路径示例），
+  容器环境模板为 `server/.env.zhijing.docker.example`（含 MySQL 可选 profile）
+- **宝塔子路径（如 `/record/`）**：前端 `npm run build -- --mode record-demo --base=/record/`（配合 `web/.env.record-demo` 的 `VITE_API_BASE=/record/api`），路由 base 与登录跳转自动适配构建期 `BASE_URL`；后端需同时设 `FRONTEND_BASE=/record/`（认证回调 302 依赖它）
 
 ## 说明
 
 - 麦克风录音要求 HTTPS（本地 `localhost` 除外），自签证书首次访问需手动继续
 - 运行数据（`server/data/`、`server/audio_storage/`、`server/exports/`）不入库，备份迁移按 deploy/README 的卷方案处理
+- 浏览器基线 **Chrome80**（上架要求）：构建后自动跑 `scripts/check-es-target.cjs` 语法体检；
+  依赖里 Chrome80 缺失的运行时 API 由 `web/src/polyfills.ts` 补齐（`npm run check:polyfill`）

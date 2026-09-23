@@ -4,9 +4,12 @@
  * + 类别筛选 + 「导出所选/导出全部」→ 任务卡轮询进度（打包中 processed/total）
  * + 下载（blob 下载后提示即焚）
  */
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { ElMessage } from "element-plus"
 import { useUserStore } from "@/stores/user"
+import { usePollingJob } from "@/composables/usePollingJob"
+import { downloadBlob } from "@/composables/useBlobDownload"
+import RegionPicker from "@/components/RegionPicker.vue"
 import {
   downloadExport,
   exportAll,
@@ -16,29 +19,13 @@ import {
   type ExportListItem,
   type ExportTaskStatus,
 } from "@/api/admin/export"
-import { listRegions, type RegionItem } from "@/api/admin/texts"
-import { api } from "@/api/http"
-
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
+import { CATEGORY_OPTIONS } from "@/constants/category"
+import { listRegions } from "@/api/admin/texts"
 
 const userStore = useUserStore()
+// 区域筛选仅超管可见（与改造前一致）：市/县级管理员由 RegionPicker 只读展示本辖区
 const isSuper = computed(() => userStore.user?.role === "super_admin")
 
-const CATEGORIES = [
-  { value: "", label: "全部类别" },
-  { value: "police", label: "警情" },
-  { value: "life", label: "生活" },
-  { value: "dirty", label: "俚语" },
-  { value: "place", label: "地名" },
-  { value: "custom", label: "自定义" },
-]
-
-const regions = ref<RegionItem[]>([])
 const items = ref<ExportListItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -46,23 +33,8 @@ const pageSize = 20
 const category = ref("")
 const loading = ref(false)
 
-// 区域筛选（超管）：地市 + 区县两级下拉，地市选定后区县才可选（市码展开整域、区县码精确）
-const regionTree = ref<RegionNode[]>([])
-const cityCode = ref("")
-const districtCode = ref("")
-const regionCode = computed(() => districtCode.value || cityCode.value)
-
-const cityOptions = computed<RegionNode[]>(() =>
-  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
-
-const districtOptions = computed<RegionNode[]>(() =>
-  cityCode.value
-    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
-    : [])
-
-function onCityChange() {
-  districtCode.value = ""
-}
+// 区域筛选：由 RegionPicker 统一维护（区县码精确、地市码展开整域）
+const regionCode = ref("")
 
 const selected = ref<Set<string>>(new Set())
 const allChecked = computed(
@@ -72,9 +44,20 @@ const allChecked = computed(
 const task = ref<ExportTaskStatus | null>(null)
 const taskId = ref(0)
 const exporting = ref(false)
-let timer: ReturnType<typeof setInterval> | null = null
 
-const regionName = (code: string) => regions.value.find((r) => r.code === code)?.name || code
+// 区域码 → 名称：懒加载一次并缓存（区域树选择器自带请求，这里只补展示用映射）
+const regionNames = ref<Record<string, string>>({})
+const regionName = (code: string) => regionNames.value[code] || code
+
+async function loadRegionNames() {
+  if (Object.keys(regionNames.value).length) return
+  try {
+    const list = await listRegions()
+    regionNames.value = Object.fromEntries(list.map((r) => [r.code, r.name]))
+  } catch {
+    /* 错误已由 http 拦截器提示 */
+  }
+}
 
 function fmtDur(s: number) {
   const m = Math.floor(s / 60)
@@ -93,21 +76,6 @@ const percent = computed(() => {
   if (!task.value || !task.value.total_count) return 0
   return Math.min(100, Math.round((task.value.processed_count / task.value.total_count) * 100))
 })
-
-async function loadRegions() {
-  try {
-    regions.value = await listRegions()
-  } catch {
-    /* 错误已由 http 拦截器提示 */
-  }
-  if (isSuper.value) {
-    try {
-      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
-    } catch {
-      /* 错误已由 http 拦截器提示 */
-    }
-  }
-}
 
 async function loadList() {
   loading.value = true
@@ -144,28 +112,20 @@ function toggleOne(key: string) {
   selected.value = new Set(selected.value)
 }
 
-function clearTimer() {
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
+const exportJob = usePollingJob({ interval: 1500 })
 
 function pollTask(taskId: number) {
-  clearTimer()
-  timer = setInterval(async () => {
-    try {
-      const t = await getExportTask(taskId)
-      task.value = t
-      if (t.status === "completed" || t.status === "failed") {
-        clearTimer()
-        exporting.value = false
-      }
-    } catch {
-      clearTimer()
+  exportJob.start(async () => {
+    const t = await getExportTask(taskId)
+    task.value = t
+    if (t.status === "completed" || t.status === "failed") {
       exporting.value = false
+      return true
     }
-  }, 1500)
+    return false
+  }, () => {
+    exporting.value = false
+  })
 }
 
 async function doExportSelected() {
@@ -208,22 +168,14 @@ async function doExportAll() {
 async function doDownload() {
   if (!taskId.value) return
   const blob = await downloadExport(taskId.value)
-  const objUrl = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = objUrl
-  a.download = `export_${taskId.value}.zip`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objUrl)
+  downloadBlob(blob, `export_${taskId.value}.zip`)
   ElMessage.success("下载开始，完成后临时文件自动清除")
 }
 
 onMounted(() => {
-  void loadRegions()
+  void loadRegionNames()
   void loadList()
 })
-onUnmounted(clearTimer)
 </script>
 
 <template>
@@ -239,28 +191,16 @@ onUnmounted(clearTimer)
       <div class="zp-card-body">
         <div class="zp-filter" style="margin-bottom: 0">
           <select class="zp-select" v-model="category" aria-label="类别">
-            <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+            <option v-for="c in CATEGORY_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
           </select>
-          <template v-if="isSuper">
-            <el-select
-              v-model="cityCode"
-              placeholder="全部地市"
-              clearable
-              style="width: 140px"
-              @change="onCityChange"
-            >
-              <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
-            </el-select>
-            <el-select
-              v-model="districtCode"
-              placeholder="全部区县"
-              clearable
-              :disabled="!cityCode"
-              style="width: 140px"
-            >
-              <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
-            </el-select>
-          </template>
+          <RegionPicker
+            v-if="isSuper"
+            v-model:value="regionCode"
+            mode="filter"
+            city-placeholder="全部地市"
+            district-placeholder="全部区县"
+            style="width: 290px"
+          />
           <button class="zp-btn zp-btn--primary" type="button" @click="search">查询清单</button>
         </div>
       </div>

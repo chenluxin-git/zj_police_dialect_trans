@@ -8,6 +8,9 @@
 import { computed, onMounted, reactive, ref } from "vue"
 import { ElMessage, type UploadFile } from "element-plus"
 import { useUserStore } from "@/stores/user"
+import { usePollingJob } from "@/composables/usePollingJob"
+import { downloadBlob } from "@/composables/useBlobDownload"
+import RegionPicker from "@/components/RegionPicker.vue"
 import { api } from "@/api/http"
 import {
   createUser,
@@ -20,13 +23,6 @@ import {
   updateUser,
 } from "@/api/admin/users"
 import type { ImportDetailRow, UserItem } from "@/api/admin/users"
-
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
 
 interface Station {
   code: string
@@ -64,25 +60,10 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 
-const regionTree = ref<RegionNode[]>([])
 const allStations = ref<Station[]>([])
 
-// 区域筛选：地市 + 区县两级下拉，地市选定后区县才可选（市码展开整域、区县码精确）
-const filterCity = ref("")
-const filterDistrict = ref("")
-const filterRegionCode = computed(() => filterDistrict.value || filterCity.value)
-
-const cityOptions = computed<RegionNode[]>(() =>
-  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
-
-const filterDistrictOptions = computed<RegionNode[]>(() =>
-  filterCity.value
-    ? cityOptions.value.find((c) => c.code === filterCity.value)?.children ?? []
-    : [])
-
-function onFilterCityChange() {
-  filterDistrict.value = ""
-}
+// 区域筛选：由 RegionPicker 统一维护（区县码优先，否则地市码；区县管理员只读本辖区）
+const filterRegionCode = ref("")
 
 async function load() {
   loading.value = true
@@ -113,8 +94,7 @@ function reset() {
   filters.phone = ""
   filters.role = ""
   filters.station = ""
-  filterCity.value = ""
-  filterDistrict.value = ""
+  filterRegionCode.value = ""
   search()
 }
 
@@ -124,12 +104,7 @@ function onPageChange(p: number) {
 }
 
 async function loadBase() {
-  const [tree, stations] = await Promise.all([
-    api.get<RegionNode[]>("/regions/tree"),
-    api.get<Station[]>("/police_stations"),
-  ])
-  regionTree.value = tree
-  allStations.value = stations
+  allStations.value = await api.get<Station[]>("/police_stations")
 }
 
 // ---------- 新增 / 编辑 ----------
@@ -144,46 +119,13 @@ const dlgUser = reactive({
   role: "user",
   password: "",
 })
-// 弹窗区域：地市 + 区县两级下拉（区县可不选 = 市本级账号；派出所随区县加载）
-const dlgCity = ref("")
-const dlgDistrict = ref("")
+// 弹窗区域：由 RegionPicker 统一维护（允许只选到地市 = 市本级账号；派出所随区县加载）
 const formStations = ref<Station[]>([])
 
-const dlgDistrictOptions = computed<RegionNode[]>(() =>
-  dlgCity.value
-    ? cityOptions.value.find((c) => c.code === dlgCity.value)?.children ?? []
-    : [])
-
-function syncDlgRegion() {
-  dlgUser.regionCode = dlgDistrict.value || dlgCity.value
-}
-
-function onDlgCityChange() {
-  dlgDistrict.value = ""
+function onDlgRegionChange(code: string) {
+  dlgUser.regionCode = code
   formStations.value = []
-  syncDlgRegion()
-}
-
-function onDlgDistrictChange() {
-  formStations.value = []
-  syncDlgRegion()
-  if (dlgDistrict.value) void loadFormStations(dlgDistrict.value)
-}
-
-/** 编辑回填：区县码 → 市+县；市码 → 仅市（市级账号） */
-function fillDlgRegion(code: string) {
-  dlgCity.value = ""
-  dlgDistrict.value = ""
-  if (code) {
-    const city = cityOptions.value.find(
-      (c) => c.code === code || c.children.some((d) => d.code === code),
-    )
-    if (city) {
-      dlgCity.value = city.code
-      if (code !== city.code) dlgDistrict.value = code
-    }
-  }
-  syncDlgRegion()
+  if (code) void loadFormStations(code)
 }
 
 function openCreate() {
@@ -191,7 +133,6 @@ function openCreate() {
     visible: true, editing: false, id: 0, phone: "", real_name: "",
     regionCode: "", policeStation: "", role: "user", password: "",
   })
-  fillDlgRegion("")
   formStations.value = []
 }
 
@@ -200,7 +141,6 @@ function openEdit(u: UserItem) {
     visible: true, editing: true, id: u.id, phone: u.phone, real_name: u.real_name,
     regionCode: u.region_code, policeStation: u.police_station, role: u.role, password: "",
   })
-  fillDlgRegion(u.region_code)
   formStations.value = []
   if (u.region_code) void loadFormStations(u.region_code)
 }
@@ -278,15 +218,6 @@ async function submitDel() {
 }
 
 // ---------- 导出 ----------
-function saveBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 async function doExport() {
   const blob = await exportUsers({
     real_name: filters.real_name || undefined,
@@ -295,7 +226,7 @@ async function doExport() {
     region_code: filterRegionCode.value || undefined,
     station: filters.station || undefined,
   })
-  saveBlob(blob, "users_export.xlsx")
+  downloadBlob(blob, "users_export.xlsx")
 }
 
 // ---------- 批量导入 ----------
@@ -308,41 +239,28 @@ const dlgImport = reactive({
   fail: 0,
   detail: [] as ImportDetailRow[],
 })
-const importPolling = ref(false)
-const importTimer = ref<number | null>(null)
+
+const importJob = usePollingJob({ interval: 1000 })
 
 function openImport() {
   Object.assign(dlgImport, { visible: true, batchId: 0, status: "", total: 0, success: 0, fail: 0, detail: [] })
 }
 
 function closeImport() {
-  stopPolling()
+  importJob.stop()
   dlgImport.visible = false
 }
 
-function stopPolling() {
-  if (importTimer.value !== null) {
-    clearInterval(importTimer.value)
-    importTimer.value = null
-  }
-  importPolling.value = false
-}
-
 function pollImport() {
-  stopPolling()
-  importPolling.value = true
-  importTimer.value = window.setInterval(() => {
-    void getImportStatus(dlgImport.batchId)
-      .then((st) => {
-        dlgImport.status = st.status
-        dlgImport.total = st.total
-        dlgImport.success = st.success
-        dlgImport.fail = st.fail
-        dlgImport.detail = st.detail
-        if (st.status === "completed") stopPolling()
-      })
-      .catch(() => stopPolling())
-  }, 1000)
+  importJob.start(async () => {
+    const st = await getImportStatus(dlgImport.batchId)
+    dlgImport.status = st.status
+    dlgImport.total = st.total
+    dlgImport.success = st.success
+    dlgImport.fail = st.fail
+    dlgImport.detail = st.detail
+    return st.status === "completed"
+  })
 }
 
 async function onUploadChange(file: UploadFile) {
@@ -361,7 +279,7 @@ async function onUploadChange(file: UploadFile) {
 
 async function downloadTemplate() {
   const blob = await downloadImportTemplate()
-  saveBlob(blob, "users_import_template.xlsx")
+  downloadBlob(blob, "users_import_template.xlsx")
 }
 
 onMounted(() => {
@@ -389,24 +307,14 @@ onMounted(() => {
         <el-option label="管理员" value="admin" />
         <el-option label="超级管理员" value="super_admin" />
       </el-select>
-      <el-select
-        v-model="filterCity"
-        placeholder="全部地市"
-        clearable
-        style="width: 140px"
-        @change="onFilterCityChange"
-      >
-        <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
-      </el-select>
-      <el-select
-        v-model="filterDistrict"
-        placeholder="全部区县"
-        clearable
-        :disabled="!filterCity"
-        style="width: 140px"
-      >
-        <el-option v-for="d in filterDistrictOptions" :key="d.code" :label="d.name" :value="d.code" />
-      </el-select>
+      <RegionPicker
+        v-model:value="filterRegionCode"
+        mode="filter"
+        super-only
+        city-placeholder="全部地市"
+        district-placeholder="全部区县"
+        style="width: 290px"
+      />
       <el-select v-model="filters.station" placeholder="全部单位" clearable filterable style="width: 180px">
         <el-option v-for="s in allStations" :key="s.code" :label="s.name" :value="s.name" />
       </el-select>
@@ -484,27 +392,14 @@ onMounted(() => {
       <div class="zp-form-row">
         <div class="zp-field">
           <label>区域<span class="req">*</span></label>
-          <div class="zp-flex" style="gap: 8px">
-            <el-select
-              v-model="dlgCity"
-              placeholder="选择地市"
-              clearable
-              style="flex: 1"
-              @change="onDlgCityChange"
-            >
-              <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
-            </el-select>
-            <el-select
-              v-model="dlgDistrict"
-              placeholder="区县（可不选）"
-              clearable
-              :disabled="!dlgCity"
-              style="flex: 1"
-              @change="onDlgDistrictChange"
-            >
-              <el-option v-for="d in dlgDistrictOptions" :key="d.code" :label="d.name" :value="d.code" />
-            </el-select>
-          </div>
+          <RegionPicker
+            v-model:value="dlgUser.regionCode"
+            mode="filter"
+            city-only
+            city-placeholder="选择地市"
+            district-placeholder="区县（可不选）"
+            @change="onDlgRegionChange"
+          />
         </div>
         <div class="zp-field">
           <label>所属派出所</label>

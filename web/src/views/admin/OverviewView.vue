@@ -8,16 +8,9 @@
  */
 import { computed, onMounted, ref } from "vue"
 import { useUserStore } from "@/stores/user"
-import { api } from "@/api/http"
+import RegionPicker from "@/components/RegionPicker.vue"
 import { getOverview } from "@/api/admin/stats"
 import type { Overview, RegionStatRow } from "@/api/admin/stats"
-
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
 
 /** 展示行：在接口行上追加层级信息（depth 0 根行 / 1 展开子行） */
 interface DisplayRow extends RegionStatRow {
@@ -83,23 +76,9 @@ const ownCode = computed(() => userStore.user?.region_code || "")
 
 const loading = ref(false)
 const overview = ref<Overview | null>(null)
-const regionTree = ref<RegionNode[]>([])
 
-// 区域筛选：地市 + 区县两级下拉，地市选定后区县才可选；「确定」后才重新加载
-const cityCode = ref("")
-const districtCode = ref("")
-
-const cityOptions = computed<RegionNode[]>(() =>
-  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
-
-const districtOptions = computed<RegionNode[]>(() =>
-  cityCode.value
-    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
-    : [])
-
-function onCityChange() {
-  districtCode.value = ""
-}
+// 区域筛选（超管）：由 RegionPicker 统一维护，区县码优先、否则地市码；「确定」后才重新加载
+const regionCode = ref("")
 
 // 三级展开状态：expanded 已展开行码；childCache 行码→子行（区县行或派出所行）；childLoading 加载中
 const expanded = ref<Set<string>>(new Set())
@@ -131,10 +110,6 @@ const categoryBars = computed<CategoryBar[]>(() => {
     color: CATEGORY_COLOR[cat] || "var(--navy-700)",
   }))
 })
-
-async function loadRegions() {
-  regionTree.value = await api.get<RegionNode[]>("/regions/tree")
-}
 
 /** 根行层级：省级视图根行是市，市/县级视图根行是区县（区县行可再展开派出所） */
 const displayRows = computed<DisplayRow[]>(() => {
@@ -179,8 +154,8 @@ async function load() {
   try {
     expanded.value = new Set()
     childCache.value = new Map()
-    const code = districtCode.value || cityCode.value || undefined
-    overview.value = await getOverview(code)
+    // 区域筛选由 RegionPicker 维护：区县码精确、地市码展开整域、空=本辖区
+    overview.value = await getOverview(regionCode.value || undefined)
   } finally {
     loading.value = false
   }
@@ -190,9 +165,8 @@ function onConfirm() {
   void load()
 }
 
-onMounted(async () => {
-  if (isSuper.value) await loadRegions()
-  await load()
+onMounted(() => {
+  void load()
 })
 </script>
 
@@ -202,24 +176,13 @@ onMounted(async () => {
       <h1>数据总览</h1>
       <span class="sub">辖区数据汇总 · 数据范围随管理员层级自动限定</span>
       <div v-if="isSuper" class="zp-head-actions">
-        <el-select
-          v-model="cityCode"
-          placeholder="全部地市"
-          clearable
-          style="width: 150px"
-          @change="onCityChange"
-        >
-          <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
-        </el-select>
-        <el-select
-          v-model="districtCode"
-          placeholder="全部区县"
-          clearable
-          :disabled="!cityCode"
-          style="width: 150px"
-        >
-          <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
-        </el-select>
+        <RegionPicker
+          v-model:value="regionCode"
+          mode="filter"
+          city-placeholder="全部地市"
+          district-placeholder="全部区县"
+          style="width: 310px"
+        />
         <button class="zp-btn zp-btn--primary" type="button" @click="onConfirm">确定</button>
       </div>
     </div>
@@ -321,11 +284,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.zp-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
+/* .zp-overview-grid 已收拢到 theme.css（auto-fit 按可用宽度自适应），此处不再重复定义 */
 .zp-cat-bar {
   display: flex;
   align-items: center;
@@ -399,10 +358,5 @@ onMounted(async () => {
 }
 .zp-tree-child {
   color: var(--ink-2);
-}
-@media (max-width: 1080px) {
-  .zp-overview-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 </style>

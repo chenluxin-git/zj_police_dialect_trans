@@ -13,7 +13,7 @@ import re
 import zipfile
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
@@ -23,6 +23,7 @@ from ...core.database import SessionLocal, get_db
 from ...models import Annotation, AudioFile, ExportTask, Recording, Region, Text, User
 from ...schemas.export import (ApiResponse, ExportAllBody, ExportCreatedData,
                                ExportPostBody, ExportTaskStatusData, PageData, TwoSourceItem)
+from ...services import audit
 from ..deps import require_admin, resolve_scope, scope_filter
 
 logger = logging.getLogger(__name__)
@@ -150,18 +151,23 @@ def _create_task(db: Session, admin: User, raw_items: list[dict], background_tas
 @router.post("/audio", response_model=ApiResponse[ExportCreatedData])
 def export_selected(payload: ExportPostBody,
                     background_tasks: BackgroundTasks,
+                    request: Request,
                     admin: User = Depends(require_admin),
                     db: Session = Depends(get_db)):
     if not payload.items:
         raise HTTPException(status_code=400, detail="未选择导出项")
     raw = [{"source": i.source, "id": i.id} for i in payload.items]
     task_id = _create_task(db, admin, raw, background_tasks)
+    audit.queue_audit(operate_type=audit.OP_EXPORT, operate_name="数据集导出", user=admin, request=request,
+                      operate_condition=f"执行了[数据集导出]功能，操作参数为[勾选导出条数：{len(raw)}]。",
+                      display=f"导出任务ID={task_id}", data_level=2)
     return ApiResponse[ExportCreatedData](data=ExportCreatedData(task_id=task_id))
 
 
 @router.post("/audio-all", response_model=ApiResponse[ExportCreatedData])
 def export_all(payload: ExportAllBody,
                background_tasks: BackgroundTasks,
+               request: Request,
                admin: User = Depends(require_admin),
                db: Session = Depends(get_db)):
     """按当前筛选全量导出（与 audio-list 同筛同源）"""
@@ -170,6 +176,11 @@ def export_all(payload: ExportAllBody,
         raise HTTPException(status_code=400, detail="没有符合条件的音频")
     raw = [{"source": i.source, "id": i.id} for i in items]
     task_id = _create_task(db, admin, raw, background_tasks)
+    audit.queue_audit(operate_type=audit.OP_EXPORT, operate_name="数据集导出", user=admin, request=request,
+                      operate_condition=(f"执行了[数据集全量导出]功能，操作参数为[区域：{payload.region or '全部'}"
+                                         f"||类别：{payload.category or '全部'}||方言：{payload.dialect or '全部'}"
+                                         f"||是否已标注：{payload.annotated}]。"),
+                      display=f"导出任务ID={task_id}，条数={len(raw)}", data_level=2)
     return ApiResponse[ExportCreatedData](data=ExportCreatedData(task_id=task_id))
 
 

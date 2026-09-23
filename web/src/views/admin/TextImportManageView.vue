@@ -14,16 +14,7 @@ import {
   type ImportManageItem,
   type RegionItem,
 } from "@/api/admin/texts"
-
-const CAT_TAG: Record<string, string> = {
-  police: "zp-tag--blue",
-  life: "zp-tag--green",
-  dirty: "zp-tag--warn",
-  place: "zp-tag--gold",
-  custom: "zp-tag--gray",
-}
-const catLabel = (c: string) =>
-  ({ police: "警情", life: "生活", dirty: "俚语", place: "地名", custom: "自定义" }[c] || c)
+import { categoryLabel, categoryTagClass } from "@/constants/category"
 
 const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   pending: { label: "排队中", cls: "zp-tag--gray" },
@@ -120,7 +111,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="row in items" :key="row.id" :style="row.status === 'failed' ? 'opacity:.62' : ''">
               <td class="num">{{ row.file_name }}</td>
-              <td><span class="zp-tag" :class="CAT_TAG[row.category] || 'zp-tag--gray'">{{ catLabel(row.category) }}</span></td>
+              <td><span class="zp-tag" :class="categoryTagClass(row.category)">{{ categoryLabel(row.category) }}</span></td>
               <td>{{ regionName(row.region_code) }}</td>
               <td class="num">{{ row.total_count }}</td>
               <td>
@@ -161,7 +152,7 @@ onMounted(async () => {
       </template>
       <div v-if="detail" class="zp-dialog-body" style="padding: 0">
         <p class="zp-text-3" style="margin-bottom: 12px">
-          {{ catLabel(detail.category) }} · {{ regionName(detail.region_code) }} · {{ detail.total_count }} 条 ·
+          {{ categoryLabel(detail.category) }} · {{ regionName(detail.region_code) }} · {{ detail.total_count }} 条 ·
           {{ fmtDateTime(detail.created_at) }} 导入 · 样本（前 {{ detail.sample_texts.length }} 条）：
         </p>
         <ul class="zp-line-list" v-if="detail.sample_texts.length">

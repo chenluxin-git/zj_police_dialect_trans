@@ -4,19 +4,13 @@
  * 收件口径 el-segmented：按人员（scope 用户远程搜索）/ 按区域（地市+区县两级下拉，市码=全市）/ 按单位（派出所下拉）
  * 右侧已发记录（标题 / 时间 / 收件数 / 已读数），行点开查看消息详情；发送成功回显 sent/skipped。
  */
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { ElMessage } from "element-plus"
+import RegionPicker from "@/components/RegionPicker.vue"
 import { api } from "@/api/http"
 import { listUsers } from "@/api/admin/users"
 import { listSentMessages, sendMessage } from "@/api/admin/messages"
 import type { SentMessage } from "@/api/admin/messages"
-
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
 
 interface Station {
   code: string
@@ -49,23 +43,10 @@ const stationName = ref("")
 const title = ref("")
 const content = ref("")
 
-const regionTree = ref<RegionNode[]>([])
 const stations = ref<Station[]>([])
 
-// 区域收件：地市 + 区县两级下拉，地市选定后区县才可选（只选市 = 全市群发，选到区县 = 区县群发）
-const cityCode = ref("")
-const districtCode = ref("")
-const cityOptions = computed<RegionNode[]>(() =>
-  regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r])))
-const districtOptions = computed<RegionNode[]>(() =>
-  cityCode.value
-    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
-    : [])
-const regionCode = computed(() => districtCode.value || cityCode.value)
-
-function onCityChange() {
-  districtCode.value = ""
-}
+// 区域收件：由 RegionPicker 统一维护（只选市 = 全市群发，选到区县 = 区县群发）
+const regionCode = ref("")
 
 const userOptions = ref<{ value: number; label: string }[]>([])
 const userSearchLoading = ref(false)
@@ -145,12 +126,7 @@ function openDetail(m: SentMessage) {
 }
 
 async function loadBase() {
-  const [tree, sts] = await Promise.all([
-    api.get<RegionNode[]>("/regions/tree"),
-    api.get<Station[]>("/police_stations"),
-  ])
-  regionTree.value = tree
-  stations.value = sts
+  stations.value = await api.get<Station[]>("/police_stations")
 }
 
 onMounted(() => {
@@ -190,25 +166,14 @@ onMounted(() => {
             >
               <el-option v-for="o in userOptions" :key="o.value" :label="o.label" :value="o.value" />
             </el-select>
-            <div v-else-if="targetType === 'region'" class="zp-flex" style="gap: 8px">
-              <el-select
-                v-model="cityCode"
-                placeholder="选择地市（全市群发）"
-                clearable
-                style="flex: 1"
-                @change="onCityChange"
-              >
-                <el-option v-for="c in cityOptions" :key="c.code" :label="c.name" :value="c.code" />
-              </el-select>
-              <el-select
-                v-model="districtCode"
-                placeholder="区县（可不选）"
-                clearable
-                :disabled="!cityCode"
-                style="flex: 1"
-              >
-                <el-option v-for="d in districtOptions" :key="d.code" :label="d.name" :value="d.code" />
-              </el-select>
+            <div v-else-if="targetType === 'region'">
+              <RegionPicker
+                v-model:value="regionCode"
+                mode="filter"
+                city-only
+                city-placeholder="选择地市（全市群发）"
+                district-placeholder="区县（可不选）"
+              />
             </div>
             <el-select
               v-else

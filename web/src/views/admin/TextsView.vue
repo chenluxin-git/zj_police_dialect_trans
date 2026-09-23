@@ -12,24 +12,7 @@ import {
   type AdminText,
   type RegionItem,
 } from "@/api/admin/texts"
-
-const CATEGORIES = [
-  { value: "", label: "全部类别" },
-  { value: "police", label: "警情" },
-  { value: "life", label: "生活" },
-  { value: "dirty", label: "俚语" },
-  { value: "place", label: "地名" },
-  { value: "custom", label: "自定义" },
-]
-const CAT_TAG: Record<string, string> = {
-  police: "zp-tag--blue",
-  life: "zp-tag--green",
-  dirty: "zp-tag--warn",
-  place: "zp-tag--gold",
-  custom: "zp-tag--gray",
-}
-const catLabel = (c: string) =>
-  ({ police: "警情", life: "生活", dirty: "俚语", place: "地名", custom: "自定义" }[c] || c)
+import { CATEGORY_OPTIONS, categoryLabel, categoryTagClass } from "@/constants/category"
 
 const items = ref<AdminText[]>([])
 const total = ref(0)
@@ -148,7 +131,7 @@ onMounted(async () => {
     <!-- 筛选栏 -->
     <div class="zp-filter">
       <select class="zp-select" v-model="category" aria-label="类别">
-        <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
+        <option v-for="c in CATEGORY_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
       </select>
       <input class="zp-input" type="date" v-model="dateStart" aria-label="开始日期" />
       <span class="zp-text-3" style="padding-top: 8px">至</span>
@@ -177,7 +160,7 @@ onMounted(async () => {
             <tr v-for="row in items" :key="row.id">
               <td><input type="checkbox" :checked="selected.has(row.id)" @change="toggleOne(row.id)" /></td>
               <td>{{ row.content }}</td>
-              <td><span class="zp-tag" :class="CAT_TAG[row.category] || 'zp-tag--gray'">{{ catLabel(row.category) }}</span></td>
+              <td><span class="zp-tag" :class="categoryTagClass(row.category)">{{ categoryLabel(row.category) }}</span></td>
               <td>{{ regionName(row.region_code) }}</td>
               <td class="num">{{ fmtDateTime(row.created_at) }}</td>
             </tr>

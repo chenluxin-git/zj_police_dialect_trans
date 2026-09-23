@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from ..core.config import settings
 from ..core.database import get_db
 from ..models import Dialect, Recording, Text, TextAssignment, User
 from ..schemas.recording import ApiResponse, PageData, RecordingItem, UploadResultData
+from ..services import audit
 from ..services.qc import trigger_qc
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ def _user_folder(user: User) -> str:
 
 @router.post("", response_model=ApiResponse[UploadResultData])
 async def upload_recording(
+    request: Request,
     file: UploadFile = File(...),
     text_id: int = Form(...),
     current_user: User = Depends(get_current_user),
@@ -108,6 +110,9 @@ async def upload_recording(
     db.commit()
     trigger_qc(rec.id)  # 适时质检：录完即后台发起，不等 60s 扫描轮（qc_loop 仍兜底）
     logger.info("用户 %s 录音上传成功 recording=%s text=%s", current_user.id, rec.id, text_id)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="录音采集", user=current_user, request=request,
+                      operate_condition=f"执行了[录音采集]功能，操作参数为[文本ID：{text_id}||时长：{duration:.2f}s]。",
+                      display=f"录音记录ID={rec.id}，字节数={rec.file_size}", data_level=2)
     return ApiResponse[UploadResultData](data=UploadResultData(
         id=rec.id, duration=duration, file_size=rec.file_size, qc_status="pending"))
 
@@ -182,6 +187,7 @@ def download_recording(
 @router.delete("/{recording_id}", response_model=ApiResponse)
 def delete_recording(
     recording_id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -195,4 +201,7 @@ def delete_recording(
         os.remove(rec.file_path)
     db.delete(rec)
     db.commit()
+    audit.queue_audit(operate_type=audit.OP_DELETE, operate_name="删除录音", user=current_user, request=request,
+                      operate_condition=f"执行了[删除录音]功能，操作参数为[录音ID：{recording_id}||区域：{rec.region_code}]。",
+                      display="删除成功", data_level=2)
     return ApiResponse(msg="删除成功")

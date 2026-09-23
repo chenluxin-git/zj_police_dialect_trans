@@ -3,9 +3,9 @@
  * 标注管理（dome/admin-annotations.html 1:1）：译文关键词筛选 + 表格
  * + 播放（/api/audio/files/{id}/file）+ 删除（音频回待标注队列）（已取消是否方言判定）
  */
-import { onMounted, onUnmounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
-import { useAudioStore } from "@/stores/audio"
+import { useBlobPlayer } from "@/composables/useBlobDownload"
 import {
   deleteAnnotation,
   fetchAudioBlob,
@@ -13,15 +13,13 @@ import {
   type AdminAnnotation,
 } from "@/api/admin/export"
 
-const audio = useAudioStore()
+const audio = useBlobPlayer()
 const items = ref<AdminAnnotation[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 const keyword = ref("")
 const loading = ref(false)
-
-let listenUrl = ""
 
 function fmtDateTime(iso: string | null) {
   if (!iso) return "—"
@@ -57,10 +55,7 @@ function reset() {
 
 async function listen(row: AdminAnnotation) {
   const blob = await fetchAudioBlob(`/api/audio/files/${row.file_id}/file`)
-  const url = URL.createObjectURL(blob)
-  audio.play(url)
-  if (listenUrl) URL.revokeObjectURL(listenUrl)
-  listenUrl = url
+  audio.play(blob)
 }
 
 async function remove(row: AdminAnnotation) {
@@ -75,9 +70,6 @@ async function remove(row: AdminAnnotation) {
 }
 
 onMounted(() => void load())
-onUnmounted(() => {
-  if (listenUrl) URL.revokeObjectURL(listenUrl)
-})
 </script>
 
 <template>

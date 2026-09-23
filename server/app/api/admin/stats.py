@@ -244,27 +244,37 @@ def overview(
         for rc in row_codes
     ]
 
+    # total 必须是「本次请求区域」的合计，而不是全 scope 的合计。
+    # 原实现 sum(user_counts.values()) 累加的是 scope 内全部区域（super_admin/省管 scope=None
+    # 时等于全库），所以切换地市时 total 恒定不变 —— 统计卡与进度条不跟着区域走。
+    # 改为按 row_of_code 分桶：只有属于本区域子树的 code 才计入（与 rows 同口径）。
+    total_codes = set(row_of_code.keys())
     total = {
         "code": parent.code,
         "name": parent.name,
-        "users": sum(user_counts.values()),
-        "recordings": sum(rec_counts.values()),
-        "seconds": sum(rec_seconds.values()),
-        "size_bytes": sum(rec_sizes.values()),
-        "texts": sum(text_counts.values()),
-        "audio_files": sum(audio_counts.values()),
-        "annotated": sum(ann_counts.values()),
+        "users": sum(v for c, v in user_counts.items() if c in total_codes),
+        "recordings": sum(v for c, v in rec_counts.items() if c in total_codes),
+        "seconds": sum(v for c, v in rec_seconds.items() if c in total_codes),
+        "size_bytes": sum(v for c, v in rec_sizes.items() if c in total_codes),
+        "texts": sum(v for c, v in text_counts.items() if c in total_codes),
+        "audio_files": sum(v for c, v in audio_counts.items() if c in total_codes),
+        "annotated": sum(v for c, v in ann_counts.items() if c in total_codes),
     }
 
-    # 任务维度：scope 内全部 active tasks
+    # 任务维度：限定「本次请求区域」子树的用户（原先只按 scope 过滤，
+    # 导致选中某市时任务进度仍显示全省数字）
     task_rows = db.execute(
         select(Task).join(User, Task.user_id == User.id)
-        .where(Task.status == "active", scope_filter(User.region_code, scope))
+        .where(Task.status == "active", User.region_code.in_(total_codes))
     ).scalars().all()
 
-    category_counts = dict(db.execute(
+    # 类别分布同理：只统计本区域子树（原先按 scope，切换区域不变）
+    category_counts: dict[str, int] = {}
+    cat_rows = db.execute(
         select(Text.category, func.count())
-        .where(scope_filter(Text.region_code, scope)).group_by(Text.category)).all())
+        .where(Text.region_code.in_(total_codes)).group_by(Text.category)).all()
+    for cat, n in cat_rows:
+        category_counts[cat] = category_counts.get(cat, 0) + n
 
     return ok({"level": level, "rows": rows, "total": total,
                "tasks": _task_dimension(db, task_rows), "category_counts": category_counts})

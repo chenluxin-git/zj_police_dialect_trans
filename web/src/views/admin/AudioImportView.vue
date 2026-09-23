@@ -3,73 +3,24 @@
  * 音频导入（扫盘）（dome/admin-audio-import.html 1:1）：服务器路径 + 递归开关 + 归属区域
  * + 后台扫描任务轮询 + 4 统计格（已发现/新入库/跳过/失败）
  */
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { onUnmounted, ref } from "vue"
 import { ElMessage } from "element-plus"
-import { useUserStore } from "@/stores/user"
+import RegionPicker from "@/components/RegionPicker.vue"
+import { usePollingJob } from "@/composables/usePollingJob"
 import {
-  listRegions,
   pollAudioScan,
   startAudioScan,
   type AudioScanPoll,
-  type RegionItem,
 } from "@/api/admin/texts"
-import { api } from "@/api/http"
 
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
-
-const userStore = useUserStore()
-
-const regions = ref<RegionItem[]>([])
-const regionTree = ref<RegionNode[]>([])
 const serverPath = ref("")
 const recursive = ref(true)
 
-// 规格裁定 2026-09-22：导入强制落区县级（用户领取为精确匹配，市/省级归属成死数据）
-// 区县管理员默认本辖区（后端自动）；市管限本市下辖区县、省管/超管全省区县，必选
-const ownRegion = computed(() =>
-  regions.value.find((r) => r.code === userStore.user?.region_code))
-const needDistrictPick = computed(() =>
-  regions.value.length > 0 && ownRegion.value?.level !== "district")
-
-// 归属区域（地市 + 区县两级下拉，地市选定后区县才可选，须选到区县）：市管锁定本市；省管/超管全省
-const cityCode = ref("")
-const districtCode = ref("")
-
-function findNode(nodes: RegionNode[], code: string): RegionNode | null {
-  for (const n of nodes) {
-    if (n.code === code) return n
-    const hit = findNode(n.children, code)
-    if (hit) return hit
-  }
-  return null
-}
-
-const cityOptions = computed<RegionNode[]>(() => {
-  const own = ownRegion.value
-  if (own?.level === "city") {
-    const ownCity = findNode(regionTree.value, own.code)
-    return ownCity ? [ownCity] : []
-  }
-  return regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r]))
-})
-
-const districtOptions = computed<RegionNode[]>(() =>
-  cityCode.value
-    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
-    : [])
-
-function onCityChange() {
-  districtCode.value = ""
-}
+// 归属区域：区县管理员只读本辖区；市/省级管理员须选定区县（RegionPicker 内部按账号层级推导）
+const regionCode = ref("")
 
 const scanning = ref(false)
 const task = ref<AudioScanPoll | null>(null)
-let timer: ReturnType<typeof setInterval> | null = null
 
 const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   pending: { label: "排队中", cls: "zp-tag--gray" },
@@ -78,56 +29,27 @@ const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   failed: { label: "失败", cls: "zp-tag--danger" },
 }
 
-const ownRegionName = computed(() => {
-  const code = userStore.user?.region_code
-  if (!code) return "本辖区"
-  return regions.value.find((r) => r.code === code)?.name || code
-})
-
-async function loadRegions() {
-  try {
-    regions.value = await listRegions()
-  } catch {
-    /* 错误已由 http 拦截器提示 */
-  }
-  if (needDistrictPick.value) {
-    try {
-      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
-      if (cityOptions.value.length === 1) cityCode.value = cityOptions.value[0].code // 市管自动锁定本市
-    } catch {
-      /* 错误已由 http 拦截器提示 */
-    }
-  }
-}
-
-function clearTimer() {
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
+const scanJob = usePollingJob({ interval: 1200 })
 
 function pollTask(taskId: number) {
-  clearTimer()
-  timer = setInterval(async () => {
-    try {
-      const t = await pollAudioScan(taskId)
-      task.value = t
-      if (t.status === "completed") {
-        clearTimer()
-        scanning.value = false
-        ElMessage.success(`扫描完成：新入库 ${t.imported} 个文件`)
-      } else if (t.status === "failed") {
-        clearTimer()
-        scanning.value = false
-        ElMessage.error(t.error_message || "扫描失败")
-      }
-    } catch {
-      clearTimer()
+  scanJob.start(async () => {
+    const t = await pollAudioScan(taskId)
+    task.value = t
+    if (t.status === "completed") {
       scanning.value = false
-      task.value = null
+      ElMessage.success(`扫描完成：新入库 ${t.imported} 个文件`)
+      return true
     }
-  }, 1200)
+    if (t.status === "failed") {
+      scanning.value = false
+      ElMessage.error(t.error_message || "扫描失败")
+      return true
+    }
+    return false
+  }, () => {
+    scanning.value = false
+    task.value = null
+  })
 }
 
 async function startScan() {
@@ -135,7 +57,7 @@ async function startScan() {
     ElMessage.warning("请输入服务器文件夹路径")
     return
   }
-  if (needDistrictPick.value && !districtCode.value) {
+  if (!regionCode.value) {
     ElMessage.warning("请先选择地市并选定归属区县（市/省级归属的音频县级用户无法领取）")
     return
   }
@@ -145,7 +67,7 @@ async function startScan() {
     const data = await startAudioScan({
       server_path: serverPath.value.trim(),
       recursive: recursive.value,
-      region_code: districtCode.value || undefined,
+      region_code: regionCode.value,
     })
     pollTask(data.task_id)
   } catch {
@@ -153,8 +75,7 @@ async function startScan() {
   }
 }
 
-onMounted(loadRegions)
-onUnmounted(clearTimer)
+onUnmounted(() => scanJob.stop())
 </script>
 
 <template>
@@ -180,17 +101,7 @@ onUnmounted(clearTimer)
           </label>
           <div style="flex: 1">
             <label style="display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px">归属区域<span class="req">*</span></label>
-            <div v-if="needDistrictPick" class="zp-flex" style="gap: 8px">
-              <select class="zp-select" v-model="cityCode" aria-label="地市" style="flex: 1" @change="onCityChange">
-                <option value="">选择地市</option>
-                <option v-for="c in cityOptions" :key="c.code" :value="c.code">{{ c.name }}</option>
-              </select>
-              <select class="zp-select" v-model="districtCode" aria-label="区县" style="flex: 1" :disabled="!cityCode">
-                <option value="">选择区县</option>
-                <option v-for="d in districtOptions" :key="d.code" :value="d.code">{{ d.name }}</option>
-              </select>
-            </div>
-            <input v-else class="zp-input" :value="ownRegionName" disabled />
+            <RegionPicker v-model:value="regionCode" mode="required-district" />
           </div>
         </div>
         <button class="zp-btn zp-btn--primary zp-btn--lg zp-mt-16" style="width: 100%" type="button"

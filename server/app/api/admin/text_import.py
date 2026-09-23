@@ -8,7 +8,7 @@ import os
 import re
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from ...core.config import settings
 from ...core.database import SessionLocal, get_db
 from ...models import Dialect, ImportTask, Recording, Text, User
 from ...schemas import ok
+from ...services import audit
 from ..deps import require_admin, resolve_scope
 from .audio_upload import _resolve_region  # 区县级强制裁定（2026-09-22）：三入库口共一定义点
 
@@ -150,6 +151,7 @@ def download_template(fmt: str, admin: User = Depends(require_admin)):
 @router.post("/import")
 async def import_texts(
     background: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     category: str = Form(...),
     region_code: str | None = Form(None),
@@ -168,6 +170,10 @@ async def import_texts(
                              "region_code": region, "total_count": 0, "text_ids": []})
     content = await file.read()
     background.add_task(_process_import, task.id, content, ext, category, region, file_name)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="文本导入", user=admin, request=request,
+                      operate_condition=(f"执行了[文本导入]功能，操作参数为[文件：{file_name}"
+                                         f"||类别：{category}||归属区域：{region}]。"),
+                      display=f"导入任务ID={task.id}", data_level=1)
     return ok({"task_id": task.id})
 
 

@@ -9,7 +9,7 @@ r"""T10 标注作业（移植自旧 app/api/annotations.py）：
 """
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models import Annotation, AudioFile, FileAssignment, User
 from ..schemas import ok
+from ..services import audit
 from ..schemas.annotation import AnnotationCreate
 from .deps import get_current_user
 
@@ -68,7 +69,7 @@ def next_audio(current_user: User = Depends(get_current_user), db: Session = Dep
 
 
 @router.post("")
-def submit_annotation(body: AnnotationCreate,
+def submit_annotation(body: AnnotationCreate, request: Request,
                       current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     f = db.get(AudioFile, body.file_id)
     if f is None:
@@ -91,6 +92,9 @@ def submit_annotation(body: AnnotationCreate,
     db.delete(a)
     db.commit()
     db.refresh(ann)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="录音标注", user=current_user, request=request,
+                      operate_condition=f"执行了[录音标注]功能，操作参数为[音频ID：{f.id}||区域：{f.region_code}]。",
+                      display=f"标注ID={ann.id}，译文长度={len(ann.translation)}", data_level=2)
     return ok(_ann_dict(ann, f))
 
 

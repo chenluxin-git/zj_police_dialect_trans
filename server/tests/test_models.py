@@ -1,12 +1,17 @@
 from app.models import (User, Region, Dialect, PoliceStation, Text, TextAssignment,
                         Recording, AudioFile, FileAssignment, Annotation, ImportTask,
-                        ExportTask, UserImportBatch, Task, Message, MessageRecipient, QCLog)
+                        ExportTask, UserImportBatch, Task, Message, MessageRecipient, QCLog,
+                        AuditLog, AuditSend, OrgUnit, OrgSyncCursor, LoginTicket,
+                        LinkageEvent, RevokedToken)
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-def test_17_tables_registered(db):
+def test_24_tables_registered(db):
     from app.core.database import Base
-    assert len(Base.metadata.tables) == 17
+    assert len(Base.metadata.tables) == 24  # 原生 17 表 + 智治接入 7 表
+    # 浙警智治接入新增表逐一在册（models/audit.py、models/org.py、models/linkage.py）
+    assert {"audit_logs", "audit_send", "org_units", "org_sync_cursor",
+            "login_tickets", "linkage_events", "revoked_tokens"} <= set(Base.metadata.tables)
 
 def test_recording_unique_user_text(db):
     u = User(phone="33100400002", password_hash="x", real_name="a", region_code="331004", role="user"); db.add(u); db.commit()

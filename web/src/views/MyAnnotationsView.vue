@@ -103,8 +103,11 @@ onUnmounted(() => audio.stop())
 
 <template>
   <div class="zp-page-head">
-    <h1>我的标注</h1>
+    <h1>历史标注</h1>
     <span class="sub">共 {{ all.length }} 条</span>
+    <div class="zp-head-actions">
+      <router-link class="zp-btn zp-btn--ghost" to="/annotation/work">← 返回开始标注</router-link>
+    </div>
   </div>
 
   <!-- 筛选栏 -->

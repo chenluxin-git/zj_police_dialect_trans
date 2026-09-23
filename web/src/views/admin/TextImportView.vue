@@ -3,67 +3,17 @@
  * 文本导入（dome/admin-text-import.html 1:1）：类别 + 归属区域（super_admin 可改）
  * + txt/docx 模板下载 + el-upload 单文件 + 后台导入任务轮询（句号切分）
  */
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed, onUnmounted, ref } from "vue"
 import { ElMessage } from "element-plus"
 import type { UploadFile } from "element-plus"
-import { useUserStore } from "@/stores/user"
-import { api } from "@/api/http"
+import RegionPicker from "@/components/RegionPicker.vue"
+import { usePollingJob } from "@/composables/usePollingJob"
+import { downloadBlob } from "@/composables/useBlobDownload"
 import {
   downloadTextTemplate,
   importTexts,
-  listRegions,
   pollTextImport,
-  type RegionItem,
 } from "@/api/admin/texts"
-
-interface RegionNode {
-  code: string
-  name: string
-  level: string
-  children: RegionNode[]
-}
-
-const userStore = useUserStore()
-
-// 规格裁定 2026-09-22：导入强制落区县级（用户领取为精确匹配，市/省级归属成死数据）
-// 区县管理员默认本辖区（后端自动）；市管限本市下辖区县、省管/超管全省区县，必选
-const ownRegion = computed(() =>
-  regions.value.find((r) => r.code === userStore.user?.region_code))
-const needDistrictPick = computed(() =>
-  regions.value.length > 0 && ownRegion.value?.level !== "district")
-
-const regionTree = ref<RegionNode[]>([])
-
-function findNode(nodes: RegionNode[], code: string): RegionNode | null {
-  for (const n of nodes) {
-    if (n.code === code) return n
-    const hit = findNode(n.children, code)
-    if (hit) return hit
-  }
-  return null
-}
-
-// 归属区域（地市 + 区县两级下拉，地市选定后区县才可选，须选到区县）：市管锁定本市；省管/超管全省
-const cityCode = ref("")
-const districtCode = ref("")
-
-const cityOptions = computed<RegionNode[]>(() => {
-  const own = ownRegion.value
-  if (own?.level === "city") {
-    const ownCity = findNode(regionTree.value, own.code)
-    return ownCity ? [ownCity] : []
-  }
-  return regionTree.value.flatMap((r) => (r.level === "province" ? r.children : [r]))
-})
-
-const districtOptions = computed<RegionNode[]>(() =>
-  cityCode.value
-    ? cityOptions.value.find((c) => c.code === cityCode.value)?.children ?? []
-    : [])
-
-function onCityChange() {
-  districtCode.value = ""
-}
 
 const CATEGORIES = [
   { value: "police", label: "警情" },
@@ -79,89 +29,53 @@ const STATUS_TAG: Record<string, { label: string; cls: string }> = {
   failed: { label: "失败", cls: "zp-tag--danger" },
 }
 
-const regions = ref<RegionItem[]>([])
 const category = ref("police")
 const file = ref<File | null>(null)
 const importing = ref(false)
 const task = ref<{ status: string; total_count: number; error_message: string | null } | null>(null)
 
-let timer: ReturnType<typeof setInterval> | null = null
-
-const ownRegionName = computed(() => {
-  const code = userStore.user?.region_code
-  if (!code) return "本辖区"
-  return regions.value.find((r) => r.code === code)?.name || code
-})
+// 归属区域：区县管理员只读本辖区；市/省级管理员须选定区县（RegionPicker 内部按账号层级推导）
+const regionCode = ref("")
 
 const fileSizeLabel = computed(() => {
   if (!file.value) return ""
   return `${Math.max(1, Math.round(file.value.size / 1024))} KB`
 })
 
-async function loadRegions() {
-  try {
-    regions.value = await listRegions()
-  } catch {
-    /* 错误已由 http 拦截器提示 */
-  }
-  if (needDistrictPick.value) {
-    try {
-      regionTree.value = await api.get<RegionNode[]>("/regions/tree")
-      if (cityOptions.value.length === 1) cityCode.value = cityOptions.value[0].code // 市管自动锁定本市
-    } catch {
-      /* 错误已由 http 拦截器提示 */
-    }
-  }
-}
+const importJob = usePollingJob({ interval: 1200 })
 
 function onFileChange(uploadFile: UploadFile) {
   file.value = uploadFile.raw || null
 }
 
-function clearTimer() {
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
-
 async function downloadTemplate(fmt: "txt" | "docx") {
   try {
     const blob = await downloadTextTemplate(fmt)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = fmt === "txt" ? "texts_template.txt" : "texts_template.docx"
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    downloadBlob(blob, fmt === "txt" ? "texts_template.txt" : "texts_template.docx")
   } catch {
     /* 错误已由 http 拦截器提示 */
   }
 }
 
 function pollTask(taskId: number) {
-  clearTimer()
-  timer = setInterval(async () => {
-    try {
-      const t = await pollTextImport(taskId)
-      task.value = { status: t.status, total_count: t.total_count, error_message: t.error_message }
-      if (t.status === "completed") {
-        clearTimer()
-        importing.value = false
-        ElMessage.success(`导入完成，共 ${t.total_count} 条文本`)
-      } else if (t.status === "failed") {
-        clearTimer()
-        importing.value = false
-        ElMessage.error(t.error_message || "导入失败")
-      }
-    } catch {
-      clearTimer()
+  importJob.start(async () => {
+    const t = await pollTextImport(taskId)
+    task.value = { status: t.status, total_count: t.total_count, error_message: t.error_message }
+    if (t.status === "completed") {
       importing.value = false
-      task.value = null
+      ElMessage.success(`导入完成，共 ${t.total_count} 条文本`)
+      return true
     }
-  }, 1200)
+    if (t.status === "failed") {
+      importing.value = false
+      ElMessage.error(t.error_message || "导入失败")
+      return true
+    }
+    return false
+  }, () => {
+    importing.value = false
+    task.value = null
+  })
 }
 
 async function startImport() {
@@ -169,14 +83,14 @@ async function startImport() {
     ElMessage.warning("请先选择 txt / docx 文件")
     return
   }
-  if (needDistrictPick.value && !districtCode.value) {
+  if (!regionCode.value) {
     ElMessage.warning("请先选择地市并选定归属区县（市/省级归属的文本县级用户无法领取）")
     return
   }
   const form = new FormData()
   form.append("file", file.value)
   form.append("category", category.value)
-  if (districtCode.value) form.append("region_code", districtCode.value)
+  form.append("region_code", regionCode.value)
 
   importing.value = true
   task.value = { status: "processing", total_count: 0, error_message: null }
@@ -189,8 +103,7 @@ async function startImport() {
   }
 }
 
-onMounted(loadRegions)
-onUnmounted(clearTimer)
+onUnmounted(() => importJob.stop())
 </script>
 
 <template>
@@ -217,17 +130,7 @@ onUnmounted(clearTimer)
           </div>
           <div class="zp-field">
             <label>归属区域<span class="req">*</span></label>
-            <div v-if="needDistrictPick" class="zp-flex" style="gap: 8px">
-              <select class="zp-select" v-model="cityCode" aria-label="地市" style="flex: 1" @change="onCityChange">
-                <option value="">选择地市</option>
-                <option v-for="c in cityOptions" :key="c.code" :value="c.code">{{ c.name }}</option>
-              </select>
-              <select class="zp-select" v-model="districtCode" aria-label="区县" style="flex: 1" :disabled="!cityCode">
-                <option value="">选择区县</option>
-                <option v-for="d in districtOptions" :key="d.code" :value="d.code">{{ d.name }}</option>
-              </select>
-            </div>
-            <input v-else class="zp-input" :value="ownRegionName" disabled />
+            <RegionPicker v-model:value="regionCode" mode="required-district" />
             <p class="zp-hint">导入须落区县级：区县管理员默认本辖区；市/省级管理员请选定区县，否则县级用户无法领取</p>
           </div>
         </div>

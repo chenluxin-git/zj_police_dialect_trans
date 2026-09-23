@@ -53,9 +53,13 @@ def create_token(sub: str) -> str:
 
     Returns:
         编码后的JWT字符串
+
+    说明：额外带 iat（签发时间）。零信任联动 role-update 会作废"早于作废时刻签发"的令牌，
+    因此 iat 是权限即时生效的关键字段，不可省略。
     """
-    expire = datetime.utcnow() + timedelta(hours=settings.access_token_expire_hours)
-    to_encode = {"exp": expire, "sub": str(sub)}
+    now = datetime.utcnow()
+    expire = now + timedelta(hours=settings.access_token_expire_hours)
+    to_encode = {"exp": expire, "iat": now, "sub": str(sub)}
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 def decode_token(token: str) -> str | None:
@@ -71,5 +75,13 @@ def decode_token(token: str) -> str | None:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         return payload.get("sub")
+    except jwt.JWTError:
+        return None
+
+
+def decode_token_claims(token: str) -> dict | None:
+    """解码并返回完整声明（含 iat），无效或过期返回 None"""
+    try:
+        return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
     except jwt.JWTError:
         return None

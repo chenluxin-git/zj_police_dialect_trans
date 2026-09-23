@@ -1,50 +1,74 @@
-# 浙江公安方言语料采集平台——三容器编排（db + backend + web）
-# 用法见 deploy/README.md（证书生成、SECRET_KEY 更换、MySQL 密码、存量搬迁、冒烟清单）
+# 浙江公安方言语料采集平台——双容器编排
+#
+# 本地/联调（默认）：docker compose up -d --build
+# 正式环境（MySQL）  ：docker compose --profile mysql up -d --build
+# 冒烟清单、证书生成、备份要点见 deploy/README.md；浙警智治接入见 docs/deploy-zhijing-onboarding.md
 services:
-  db:
-    image: mysql:8.0
-    container_name: zjpdt-db
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-in-prod}
-      MYSQL_DATABASE: zjpdt
-      MYSQL_USER: zjpdt
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-prod}
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 5s
-      timeout: 3s
-      retries: 30
-    restart: unless-stopped
-
   backend:
     build: ./server
+    # 显式镜像名：离线交付时 docker save/load 靠它对齐标签。
+    # 不加这行，compose 会按「项目名-服务名」生成标签（如 zj_police_dialect_trans-backend），
+    # 换目录/换项目名就会 load 完找不到镜像。
+    image: zjpdt-backend:latest
     container_name: zjpdt-backend
     env_file: ./server/.env.docker
     environment:
-      # 优先级高于 env_file；部署机在 shell 注入或改这里
+      # 优先级高于 env_file。注意：不要把 DATABASE_URL 默认成空串——环境变量为空会**覆盖** .env.docker
+      # 的取值，导致连不上库。切 MySQL 请直接改 server/.env.docker 里的 DATABASE_URL。
       - SECRET_KEY=${SECRET_KEY:-change-me-in-prod}
     volumes:
-      - app-data:/data          # audio_storage + exports + 侧车台账落卷（业务库在 MySQL）
+      - app-data:/data          # app.db / audio_storage / exports / text_imports 全落卷
+      - ./logs/backend:/app/logs    # 应用日志外挂（规范：本地留存不少于两年）
     expose:
       - "8000"                  # 仅 compose 网内可见，由 web 反代对外
-    depends_on:
-      db:
-        condition: service_healthy
+    healthcheck:
+      # 联通性探针：/api/health 由应用直接返回，不查库，避免误判
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     restart: unless-stopped
 
   web:
     build: ./web
+    image: zjpdt-web:latest
     container_name: zjpdt-web
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/certs:/etc/nginx/certs:ro   # 自签证书（README 附 openssl 生成命令）
+      - ./deploy/certs:/etc/nginx/certs:ro           # 证书（README 附 openssl 生成命令）
+      - ./logs/nginx:/var/log/nginx                   # 访问日志外挂：智慧运维 SLS/AIOS 采集对象
+      # 上架版站点配置（结构化访问日志 + 安全响应头）；本地联调可注释掉用镜像内默认配置
+      - ./deploy/nginx.zhijing.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  # 可选：正式环境数据库（不需要时不影响默认编排）
+  mysql:
+    image: mysql:8.0
+    container_name: zjpdt-mysql
+    profiles: ["mysql"]
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-change-me-root}
+      - MYSQL_DATABASE=zjpdt
+      - MYSQL_USER=zjpdt
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-change-me-db}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-change-me-root}"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     restart: unless-stopped
 
 volumes:

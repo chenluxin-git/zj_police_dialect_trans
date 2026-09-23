@@ -5,7 +5,7 @@
 """
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ...core.database import get_db
 from ...models import Message, MessageRecipient, Region, User
 from ...schemas import ok
+from ...services import audit
 from ...services.messaging import send_message
 from ..deps import require_admin, resolve_scope
 
@@ -39,6 +40,7 @@ def _expand_region(db: Session, code: str) -> list[str]:
 @router.post("")
 def send_admin_message(
     payload: MessageSendBody,
+    request: Request,
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -63,6 +65,10 @@ def send_admin_message(
             in_scope_ids.append(uid)
 
     send_message(db, in_scope_ids, payload.title, payload.content, sender_id=admin.id)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="消息发送", user=admin, request=request,
+                      operate_condition=(f"执行了[站内消息发送]功能，操作参数为[对象类型：{payload.target_type}"
+                                         f"||对象：{payload.target_value}||实际送达：{len(in_scope_ids)} 人]。"),
+                      display=f"标题：{payload.title}"[:200], data_level=1)
     return ok({"sent": len(in_scope_ids), "skipped": len(candidates) - len(in_scope_ids)})
 
 

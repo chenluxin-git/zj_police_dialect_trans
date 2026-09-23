@@ -5,7 +5,7 @@
 import json
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from ...core.config import settings
 from ...core.database import SessionLocal, get_db
 from ...models import AudioFile, ImportTask, User
 from ...schemas import ok
+from ...services import audit
 from ...utils.file_scanner import scan_audio_files
 from ..deps import require_admin, resolve_scope
 from ..recordings import _ffprobe_duration
@@ -98,7 +99,7 @@ def _process_scan(task_id: int, server_path: str, recursive: bool,
 
 
 @router.post("/import")
-def import_scan(body: ScanBody, background: BackgroundTasks,
+def import_scan(body: ScanBody, background: BackgroundTasks, request: Request,
                 admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     if not os.path.isdir(body.server_path):
         raise HTTPException(400, "服务器路径不存在或不是目录")
@@ -118,6 +119,10 @@ def import_scan(body: ScanBody, background: BackgroundTasks,
                              "region_code": region,
                              "found": 0, "imported": 0, "skipped": 0, "failed": []})
     background.add_task(_process_scan, task.id, server_path, body.recursive, region, dialect_code)
+    audit.queue_audit(operate_type=audit.OP_CREATE, operate_name="音频扫盘导入", user=admin, request=request,
+                      operate_condition=(f"执行了[音频扫盘导入]功能，操作参数为[服务器路径：{server_path}"
+                                         f"||递归：{body.recursive}||归属区域：{region}]。"),
+                      display=f"导入任务ID={task.id}", data_level=2)
     return ok({"task_id": task.id})
 
 

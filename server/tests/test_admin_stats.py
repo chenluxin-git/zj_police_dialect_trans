@@ -85,7 +85,9 @@ def test_overview_province_aggregation(client, db):
     assert wz["texts"] == 1
 
     total = data["total"]
-    assert total["users"] == 4       # u1 u2 u3 + 超管
+    # total 口径随分叉线收紧：仅计本区域子树（与 rows 同口径）；
+    # 挂在省份节点本身的超管（330000）不再计入，切换区域时统计卡随之变化
+    assert total["users"] == 3       # u1 u2 u3
     assert total["recordings"] == 4
     assert total["seconds"] == 14.0
     assert total["size_bytes"] == 1000

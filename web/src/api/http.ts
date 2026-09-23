@@ -8,6 +8,7 @@
 import axios from "axios"
 import type { AxiosRequestConfig } from "axios"
 import { ElMessage } from "element-plus"
+import { reportApiError } from "@/utils/clientLogger"
 
 export const TOKEN_KEY = "zp_token"
 
@@ -30,6 +31,13 @@ http.interceptors.response.use(
     if (body && typeof body === "object" && "code" in body && !(body instanceof Blob)) {
       if (body.code !== 0) {
         const msg = body.msg || "请求失败"
+        reportApiError({
+          method: resp.config?.method?.toUpperCase(),
+          url: resp.config?.url || "",
+          status: resp.status,
+          message: msg,
+          traceId: resp.headers?.["x-trace-id"] as string | undefined,
+        })
         ElMessage.error(msg)
         return Promise.reject(new Error(msg))
       }
@@ -50,6 +58,14 @@ http.interceptors.response.use(
       (data && (typeof data.detail === "string" ? data.detail : data.msg)) ||
       err.message ||
       "网络错误"
+    // 带上后端 trace_id：前端这条错误能与 app.request.log 的那一行直接对上
+    reportApiError({
+      method: err.config?.method?.toUpperCase(),
+      url: err.config?.url || "",
+      status: err.response?.status,
+      message: msg,
+      traceId: err.response?.headers?.["x-trace-id"] as string | undefined,
+    })
     ElMessage.error(msg)
     return Promise.reject(err)
   },

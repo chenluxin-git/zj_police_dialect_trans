@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue"
+import { onMounted, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { ElMessage } from "element-plus"
 import { useUserStore } from "@/stores/user"
@@ -10,6 +10,16 @@ const userStore = useUserStore()
 
 const form = reactive({ phone: "", password: "" })
 const loading = ref(false)
+/** 是否展示演示账号提示：仅开发环境展示（内网上架版本会被构建期剔除） */
+const showDemo = import.meta.env.DEV
+
+onMounted(() => {
+  // 从浙警智治进入但认证失败时，后端会带错误信息回到这里
+  if (route.query.error === "zhijing") {
+    const msg = (route.query.msg as string) || ""
+    ElMessage.warning(msg ? `平台认证未通过：${msg}` : "平台认证未通过，请从浙警智治终端重新进入本应用")
+  }
+})
 
 async function submit() {
   if (!/^\d{11}$/.test(form.phone)) {
@@ -64,11 +74,11 @@ async function submit() {
     <!-- 右：登录表单 -->
     <section class="zp-auth-form">
       <h2>账号登录</h2>
-      <p class="lead">使用手机号和密码登录平台</p>
+      <p class="lead">正式环境请从浙警智治终端点击本应用进入（数字证书免二次登录）</p>
 
       <form @submit.prevent="submit">
         <div class="zp-field">
-          <label for="phone">手机号<span class="req">*</span></label>
+          <label for="phone">手机号/警号<span class="req">*</span></label>
           <input class="zp-input" id="phone" v-model="form.phone" type="tel" maxlength="11"
             placeholder="请输入 11 位手机号" />
         </div>
@@ -85,12 +95,11 @@ async function submit() {
 
       <p class="zp-center zp-mt-16 zp-text-3">还没有账号？<router-link to="/register">注册新账号</router-link></p>
 
-      <div class="zp-alert zp-alert--info zp-mt-24" style="font-size:12px; line-height: 1.9">
+      <div v-if="showDemo" class="zp-alert zp-alert--info zp-mt-24" style="font-size:12px; line-height: 1.9">
         <span>
-          演示账号（密码均为 123456）：<br />
+          演示账号（密码均为 123456，仅本地开发环境展示）：<br />
           33000000001 超级管理员 ／ 33100000001 市级管理员（台州）／ 33010000001 市级管理员（杭州）<br />
-          33100400001 区县管理员（路桥）／ 33102400001 区县管理员（仙居）<br />
-          33100400002 民警（路桥）／ 33100400003 民警（路桥）／ 33102400002 民警（仙居）
+          33100400001 区县管理员（路桥）／ 33100400002 民警（路桥）
         </span>
       </div>
     </section>

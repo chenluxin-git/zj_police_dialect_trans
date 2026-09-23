@@ -6,13 +6,14 @@
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ...core.database import get_db
 from ...models import Recording, Region, Text, User
 from ...schemas import ok
+from ...services import audit
 from ..deps import require_admin, resolve_scope, scope_filter
 
 router = APIRouter(prefix="/texts", tags=["管理端-文本管理"])
@@ -68,7 +69,7 @@ def list_texts(
 
 
 @router.delete("/batch")
-def delete_texts_batch(body: BatchDeleteBody, admin: User = Depends(require_admin),
+def delete_texts_batch(body: BatchDeleteBody, request: Request, admin: User = Depends(require_admin),
                        db: Session = Depends(get_db)):
     scope = resolve_scope(db, admin)
     deleted: list[int] = []
@@ -87,4 +88,8 @@ def delete_texts_batch(body: BatchDeleteBody, admin: User = Depends(require_admi
         db.delete(t)
         deleted.append(tid)
     db.commit()
+    audit.queue_audit(operate_type=audit.OP_DELETE, operate_name="文本批量删除", user=admin, request=request,
+                      operate_condition=(f"执行了[文本批量删除]功能，操作参数为[请求删除：{len(body.ids)} 条"
+                                         f"||实际删除：{len(deleted)} 条||跳过：{len(skipped)} 条]。"),
+                      display=f"删除ID={deleted[:50]}", data_level=1)
     return ok({"deleted": deleted, "skipped": skipped})

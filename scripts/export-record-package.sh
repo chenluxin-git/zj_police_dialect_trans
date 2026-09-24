@@ -15,6 +15,7 @@
 #   nginx-record.conf           宝塔站点追加的 location 片段
 #   load.sh                     服务器侧镜像导入+自检
 #   update.sh                   增量升级一键脚本（分包部署：zjpdt-backend-*.tar.gz + record_web*.tar.gz）
+#   install.sh                  首装一键脚本（导镜像/生成密钥/起容器/前端落盘/nginx 接入）
 #   DEPLOY.md                   部署手册
 #   MANIFEST.txt                sha256 + git 版本 + 构建命令
 #   最后整体打一个 .tar.gz
@@ -108,6 +109,8 @@ cp deploy/record/load.sh            "$PKG/load.sh"
 chmod +x "$PKG/load.sh"
 cp deploy/record/update.sh          "$PKG/update.sh"
 chmod +x "$PKG/update.sh"
+cp deploy/record/install.sh          "$PKG/install.sh"
+chmod +x "$PKG/install.sh"
 cp deploy/record/DEPLOY.md          "$PKG/DEPLOY.md"
 say "  OK  compose / env 模板 / nginx 片段 / load.sh / update.sh / DEPLOY.md"
 
@@ -132,11 +135,11 @@ CHECKSUMS="$( (cd "$PKG" && find . -type f ! -name MANIFEST.txt -exec sha256sum 
   echo "== 文件 sha256（服务器侧 sha256sum -c 核对传输完整性）=="
   echo "$CHECKSUMS"
   echo ""
-  echo "== 服务器侧下一步 =="
-  echo "  1) 解压到 /opt/zjpdt-record"
-  echo "  2) bash load.sh"
-  echo "  3) cp .env.template .env 并填三个 openssl 密钥"
-  echo "  4) docker compose up -d，按 DEPLOY.md §5-§9 验证"
+  echo "== 服务器侧下一步（新机器首装）=="
+  echo "  1) tar -xzf 本包.tar.gz && cd 包目录"
+  echo "  2) bash install.sh --domain <你的域名>   # 一键：导镜像/生成密钥/起容器/前端/nginx，详见 DEPLOY.md §0.1"
+  echo "  3) 按 DEPLOY.md §9 全链验证"
+  echo "  （已部署机器的增量升级：用 update.sh + 分包，见 DEPLOY.md §10.4）"
 } > "$PKG/MANIFEST.txt"
 say "  OK  MANIFEST.txt"
 

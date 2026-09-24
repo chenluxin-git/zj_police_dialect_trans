@@ -27,6 +27,22 @@ zjpdt-record-pkg-<时间戳>/
 **铁律二**：必须 Docker Compose **v2**（`docker compose version` 能出结果；python 版 docker-compose v1 不认本编排）。
 **铁律三**：解压目录固定为 `/opt/zjpdt-record`（卷名已被编排锁死为 `zjpdt-record_*`，固定路径是双保险，也方便日后找）。
 
+## 0.1 一键首装（推荐；等价于 §1-§8 全部手动步骤）
+
+交付包解压后，在**包根目录**执行：
+
+```bash
+bash install.sh                          # 默认域名 tailect.cn；新机器换域名用 --domain 新域名
+bash install.sh --skip-nginx             # 非宝塔机器：跳过 nginx 接入，改按 §8 手动
+# 可选：--web-root <站点根>  --app-dir <部署目录>（默认 /www/wwwroot/<域名>、/opt/zjpdt-record）
+```
+
+脚本自动：预检（docker / 包完整性 / 磁盘）→ load.sh 导镜像+探针 → 建部署目录 →
+openssl 随机生成三个密钥写入 `.env`（600 权限，已存在则保留不覆盖）→ `docker compose up -d` →
+等 mysql/backend 双 healthy（首启建库+种子账号约 1-4 分钟）→ 前端解压到站点根并 chown www →
+渲染 nginx-record.conf（`<站点根>` 已替换）插入宝塔站点配置（先备份；`nginx -t` 不过自动还原）。
+幂等可重复执行。完成后照 **§9** 逐条验证；想逐步理解每一步再走 §1-§8 手动流程。
+
 ## 1. 前置检查（SSH 到服务器）
 
 ```bash

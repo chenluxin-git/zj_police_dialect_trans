@@ -60,7 +60,10 @@ def refresh_assignment(
     db: Session = Depends(get_db),
 ):
     """续期：重置 assigned_at（换一条录音过程中防超时）"""
-    if db.query(Recording).filter(Recording.text_id == text_id).first() is not None:
+    # 全局"已被录制"检查：failed 行不算（质检未通过文本已释放回池，可重录）
+    if db.query(Recording).filter(
+            Recording.text_id == text_id,
+            Recording.qc_status.in_(("pending", "passed"))).first() is not None:
         raise HTTPException(status_code=400, detail="该文本已被录制")
     assignment = db.query(TextAssignment).filter(
         TextAssignment.text_id == text_id,
@@ -118,9 +121,12 @@ def assign_text(
         db.delete(existing)  # 类别不匹配：释放后重新领
         db.commit()
 
-    # 3) 候选池：未被任何锁占用 + 本人未录过 + 本区或空区匹配（保留旧写法一条 SQL）
+    # 3) 候选池：未被任何锁占用 + 本人无 pending/passed 录音（failed 已释放可重领）
+    #    + 本区或空区匹配（保留旧写法一条 SQL）
     sub_assigned = db.query(TextAssignment.text_id)
-    sub_recorded = db.query(Recording.text_id).filter(Recording.user_id == current_user.id)
+    sub_recorded = db.query(Recording.text_id).filter(
+        Recording.user_id == current_user.id,
+        Recording.qc_status.in_(("pending", "passed")))
     query = db.query(Text).filter(
         ~Text.id.in_(sub_assigned),
         ~Text.id.in_(sub_recorded),

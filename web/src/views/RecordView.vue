@@ -282,9 +282,13 @@ onUnmounted(() => {
         <span class="zp-tag zp-tag--warn">待质检</span>
         <span style="flex: 1; font-size: 13px; color: var(--ink-2)">已上传，等待转译接口返回比对结果</span>
       </div>
-      <div class="zp-flex">
+      <div class="zp-flex zp-mb-16">
         <span class="zp-tag zp-tag--green">质检通过</span>
         <span style="flex: 1; font-size: 13px; color: var(--ink-2)">相似度 ≥ 50%，正式入库并计入任务进度</span>
+      </div>
+      <div class="zp-flex">
+        <span class="zp-tag zp-tag--danger">未通过</span>
+        <span style="flex: 1; font-size: 13px; color: var(--ink-2)">录音保留在「历史录音」中，可查看比对详情，对应文本可重新领取重录</span>
       </div>
     </div>
   </div>
@@ -292,7 +296,7 @@ onUnmounted(() => {
   <div class="zp-alert zp-alert--info">
     <span>
       录制提示：请在安静环境中，用本地方言自然朗读；建议时长 5～20 秒。上传后系统自动质检：
-      与方言转译接口返回文本比对，相似度 ≥ 50% 正式入库并计入任务进度，未通过的录音将被移除并通过消息通知重录。
+      与方言转译接口返回文本比对，相似度 ≥ 50% 正式入库并计入任务进度，未通过的录音将保留在「历史录音」中并标记为未通过，对应文本可重新领取录制。
     </span>
   </div>
 

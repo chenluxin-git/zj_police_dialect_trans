@@ -6,7 +6,7 @@
 import pytest
 
 from app.core.security import create_token
-from app.models import Annotation, AudioFile, Recording, Region, Text, User
+from app.models import Annotation, AudioFile, QCLog, Recording, Region, Text, User
 from tests.conftest import make_user
 
 
@@ -126,6 +126,30 @@ def test_recordings_filters(client, db, tmp_path):
                       params={"region": "331004"}).json()["data"]["total"] == 2
     assert client.get("/api/admin/recordings", headers=h,
                       params={"q": "身份证"}).json()["data"]["total"] == 1
+
+
+def test_recording_qc_detail_scope(client, db, auth_header, tmp_path):
+    """质检文本对比详情：require_admin + scope 校验，按 (user, text) 聚合 qc_logs"""
+    seed_regions(db)
+    d = seed_manage_data(db, tmp_path)
+    rec1 = d["rec1"]  # 临海 passed（331004 ∈ 台州 scope）
+    db.add(QCLog(recording_id=rec1.id, user_id=rec1.user_id, text_id=rec1.text_id,
+                 text_content="请出示身份证", asr_text="请出示证件", similarity=0.8,
+                 result="passed"))
+    db.commit()
+    url = f"/api/admin/recordings/{rec1.id}/qc"
+    tz_admin, hz_admin, super_admin = make_admins(db)
+
+    assert client.get(url, headers=auth_header).status_code == 403        # 民警非管理端
+    r = client.get(url, headers=auth_of(tz_admin))
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["text_content"] == "请出示身份证" and len(data["items"]) == 1
+    assert data["items"][0]["asr_text"] == "请出示证件" and data["items"][0]["similarity"] == 0.8
+    assert client.get(url, headers=auth_of(hz_admin)).status_code == 403  # 越界市管
+    assert client.get(url, headers=auth_of(super_admin)).status_code == 200
+    assert client.get("/api/admin/recordings/999/qc",
+                      headers=auth_of(super_admin)).status_code == 404
 
 
 # ---------- 标注列表 ----------

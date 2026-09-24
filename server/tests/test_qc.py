@@ -70,17 +70,19 @@ def test_qc_pass(db, tmp_path, monkeypatch):
     assert os.path.exists(str(wav)) is True
 
 
-def test_qc_fail_deletes_and_notifies(db, tmp_path, monkeypatch):
+def test_qc_fail_marks_and_notifies(db, tmp_path, monkeypatch):
     enable_qc(monkeypatch, db, lambda p: "完全无关内容")
     u, t, rec, wav = make_pending(db, tmp_path, content="上盘镇")
     from app.services.qc import process_pending
     process_pending()
     db.expire_all()
-    assert db.query(Recording).count() == 0                       # 录音已删（unique 解除可重录）
-    assert os.path.exists(str(wav)) is False                       # 音频文件已删
+    after = db.get(Recording, rec.id)
+    assert after is not None and after.qc_status == "failed"    # 保留行，标记未通过
+    assert os.path.exists(str(wav)) is True                      # 音频文件保留（可试听对比）
     msg = db.query(Message).one()
     assert msg.title == "录音质检未通过"
     assert "上盘镇" in msg.content and "相似度" in msg.content
+    assert "已移除" not in msg.content and "重新领取" in msg.content
     assert db.query(MessageRecipient).filter_by(user_id=u.id).count() == 1
     assert db.query(QCLog).one().result == "failed"
 

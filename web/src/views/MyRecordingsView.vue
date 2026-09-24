@@ -1,16 +1,18 @@
 <script setup lang="ts">
 /**
  * 我的录音（dome/my-recordings.html 1:1）：类别/质检状态/搜索筛选 + 表格
- * 质检列双色标签；行内试听（audioManager 单声道）/下载（带 token 转 blob）/删除（提示进度扣减）
+ * 质检列三色标签（未通过行保留可试听/对比）；行内试听/下载/质检详情/删除
  */
 import { onMounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { useBlobPlayer, downloadBlob } from "@/composables/useBlobDownload"
+import QcDetailDialog from "@/components/QcDetailDialog.vue"
 import { CATEGORY_OPTIONS, categoryLabel, categoryTagClass } from "@/constants/category"
 import { QC_MINE_FILTER_OPTIONS, qcLabel, qcTagClass } from "@/constants/qc"
 import {
   deleteRecording,
   fetchRecordingBlob,
+  fetchRecordingQc,
   listMyRecordings,
   type RecordingItem,
 } from "@/api/recordings"
@@ -95,6 +97,16 @@ async function remove(row: RecordingItem) {
   void load()
 }
 
+const qcVisible = ref(false)
+const qcTargetId = ref<number | null>(null)
+const qcSubtitle = ref("")
+
+function openQc(row: RecordingItem) {
+  qcTargetId.value = row.id
+  qcSubtitle.value = row.text_content
+  qcVisible.value = true
+}
+
 onMounted(() => void load())
 </script>
 
@@ -109,7 +121,7 @@ onMounted(() => void load())
 
   <div class="zp-alert zp-alert--info zp-mb-16">
     <span>
-      录音上传后自动质检：与方言转译接口比对，相似度 ≥ 50% 正式入库；未通过的录音已自动移除并通过消息通知重录，不会出现在下方列表。
+      录音上传后自动质检：与方言转译接口比对，相似度 ≥ 50% 正式入库并计入任务进度；未通过的录音会保留在本列表并标记「未通过」，点击「质检」可查看原文与转译比对，对应文本可重新领取录制。
     </span>
   </div>
 
@@ -158,6 +170,7 @@ onMounted(() => void load())
             <td class="num">{{ fmtDateTime(row.created_at) }}</td>
             <td><span class="zp-tag" :class="qcTagClass(row.qc_status)">{{ qcLabel(row.qc_status) }}</span></td>
             <td class="zp-text-right">
+              <button class="zp-btn zp-btn--text" type="button" @click="openQc(row)">质检</button>
               <button class="zp-btn zp-btn--text" type="button" @click="listen(row)">播放</button>
               <button class="zp-btn zp-btn--text" type="button" @click="download(row)">下载</button>
               <button class="zp-btn zp-btn--text is-danger" type="button" @click="remove(row)">删除</button>
@@ -180,4 +193,6 @@ onMounted(() => void load())
       />
     </div>
   </div>
+
+  <QcDetailDialog v-model="qcVisible" :recording-id="qcTargetId" :fetch-qc="fetchRecordingQc" :subtitle="qcSubtitle" />
 </template>

@@ -26,3 +26,22 @@ class RecordingItem(BaseModel):
     qc_status: str
     created_at: datetime
     file_url: str
+
+
+class QcLogItem(BaseModel):
+    """质检流水行（原文/转译/相似度对比展示）"""
+    id: int
+    result: str  # passed/failed/error
+    similarity: float | None
+    asr_text: str
+    text_content: str
+    error_message: str
+    created_at: datetime
+
+
+class QcDetailData(BaseModel):
+    """质检详情：按 (user_id, text_id) 聚合的全历史（含重录替换旧行前的流水）"""
+    recording_id: int
+    text_id: int
+    text_content: str
+    items: list[QcLogItem]

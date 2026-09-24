@@ -5,6 +5,7 @@
  * - 数据集导出（两源合并清单、导出所选/全部、任务轮询、下载即焚）
  */
 import { api } from "../http"
+import type { QcDetail as QcDetailT } from "../recordings"
 
 /** 带 token 拉取音频 Blob（file_url 为 /api/... 全路径，剥离 /api 复用 baseURL） */
 export function fetchAudioBlob(fileUrl: string) {
@@ -46,6 +47,13 @@ export interface AdminRecordingQuery {
 
 export function listAdminRecordings(params: AdminRecordingQuery = {}) {
   return api.get<AdminRecordingPage>("/admin/recordings", { params })
+}
+
+/** 质检详情（类型与民警端同构，按 (user, text) 聚合 qc_logs 全历史） */
+export type { QcDetail, QcLogItem } from "../recordings"
+
+export function fetchAdminRecordingQc(id: number) {
+  return api.get<QcDetailT>(`/admin/recordings/${id}/qc`)
 }
 
 // ---------- 标注管理（T18） ----------

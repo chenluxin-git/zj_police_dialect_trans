@@ -59,3 +59,26 @@ export function deleteRecording(id: number) {
 export function fetchRecordingBlob(fileUrl: string) {
   return api.get<Blob>(fileUrl.replace(/^\/api/, ""), { responseType: "blob" })
 }
+
+/** 质检流水行（原文/转译/相似度对比，result=error 时 similarity 为 null） */
+export interface QcLogItem {
+  id: number
+  result: "passed" | "failed" | "error"
+  similarity: number | null
+  asr_text: string
+  text_content: string
+  error_message: string
+  created_at: string
+}
+
+/** 质检详情：按 (user, text) 聚合的全历史（含重录替换旧行前的流水） */
+export interface QcDetail {
+  recording_id: number
+  text_id: number
+  text_content: string
+  items: QcLogItem[]
+}
+
+export function fetchRecordingQc(id: number) {
+  return api.get<QcDetail>(`/recordings/${id}/qc`)
+}

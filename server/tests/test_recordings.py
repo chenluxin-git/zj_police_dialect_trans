@@ -1,4 +1,5 @@
 """T8 录音上传测试：ffmpeg 转 WAV / pending 入库 / 落盘路径 / 删分配 / 重复 400 / 删除联动 / 列表筛选 / 文件下载权限
++ failed 重录替换 / failed 列表可见 / 质检详情端点
 口径：计划 T8 Step 1 四条核心用例 + convert_to_wav 模块契约 + 列表与下载权限补充。
 测试音频由本机 ffmpeg 生成 1 秒静音 webm/opus；宿主机无 ffmpeg/ffprobe 时涉转码用例按计划 skip。
 conftest 默认用户 id=1（测试民警，phone 33100400002 → 尾4=0002，region 331004）。
@@ -7,12 +8,13 @@ import asyncio
 import os
 import shutil
 import subprocess
+from datetime import datetime, timedelta
 
 import pytest
 
 from app.core.config import settings
 from app.core.security import create_token
-from app.models import Recording, Region, Text, TextAssignment  # 模块级导入：conftest 建表前须已注册模型
+from app.models import QCLog, Recording, Region, Text, TextAssignment  # 模块级导入：conftest 建表前须已注册模型
 from tests.conftest import make_user
 
 FFMPEG = shutil.which("ffmpeg")
@@ -125,8 +127,37 @@ def test_upload_duplicate_same_text_400(client, db, auth_header, webm_bytes, cle
     t = make_text_with_lock(db)
     assert upload(client, auth_header, t.id, webm_bytes).status_code == 200
     r2 = upload(client, auth_header, t.id, webm_bytes)
-    assert r2.status_code == 400                   # unique(user_id, text_id) 冲突
+    assert r2.status_code == 400                   # unique(user_id, text_id) 冲突（pending 不可重录）
     assert db.query(Recording).count() == 1
+
+
+@needs_ffmpeg
+def test_upload_replaces_failed_recording(client, db, auth_header, webm_bytes,
+                                          clean_audio_dir, tmp_path):
+    """failed 行保留后重录：上传端删旧 failed 行（含文件）再插新行，qc_logs 流水保留"""
+    t = make_text_with_lock(db)
+    old_wav = tmp_path / "old.wav"
+    old_wav.write_bytes(b"RIFFold")
+    old = Recording(user_id=1, text_id=t.id, file_path=str(old_wav), file_size=8,
+                    duration=1.0, region_code="331004", dialect_code="dh_lh",
+                    qc_status="failed")
+    db.add(old)
+    db.flush()
+    db.add(QCLog(recording_id=old.id, user_id=1, text_id=t.id, text_content=t.content,
+                 asr_text="无关内容", similarity=0.1, result="failed"))
+    db.commit()
+    old_id = old.id
+
+    r = upload(client, auth_header, t.id, webm_bytes)
+    assert r.status_code == 200
+    rows = db.query(Recording).filter_by(user_id=1, text_id=t.id).all()
+    assert len(rows) == 1                          # 删旧插新：仍只有一行
+    assert rows[0].qc_status == "pending"          # 新行从 pending 重新走质检
+    # SQLite 可能复用被删行的 id，用"新文件已按上传布局落盘"证明是全新行而非旧行改状态
+    expected = os.path.join(settings.audio_storage_path, "测试民警_0002", f"{rows[0].id}.wav")
+    assert rows[0].file_path == expected and os.path.isfile(expected)
+    assert not old_wav.exists()                    # 旧 failed 音频文件已删
+    assert db.query(QCLog).filter_by(recording_id=old_id).count() == 1  # 旧流水留存可追溯
 
 
 @needs_ffmpeg
@@ -186,6 +217,73 @@ def test_my_recordings_list_and_filters(client, db, auth_header):
     r = client.get("/api/recordings", headers=auth_header, params={"category": "life"})
     assert r.json()["data"]["total"] == 1
     assert r.json()["data"]["items"][0]["text_content"] == "今天天气蛮好"
+
+
+def test_my_recordings_failed_visible(client, db, auth_header):
+    """failed 行保留：列表可见 + qc_status 筛选互通"""
+    t = Text(content="上盘镇在哪边", dialect="临海方言", category="place",
+             region_code="331004", dialect_code="dh_lh")
+    db.add(t)
+    db.commit()
+    db.add(Recording(user_id=1, text_id=t.id, file_path="f.wav", file_size=1, duration=1.0,
+                     region_code="331004", dialect_code="dh_lh", qc_status="failed"))
+    db.commit()
+
+    r = client.get("/api/recordings", headers=auth_header)
+    assert r.json()["data"]["total"] == 1
+    assert r.json()["data"]["items"][0]["qc_status"] == "failed"
+    r = client.get("/api/recordings", headers=auth_header, params={"qc_status": "failed"})
+    assert r.json()["data"]["total"] == 1
+    r = client.get("/api/recordings", headers=auth_header, params={"qc_status": "passed"})
+    assert r.json()["data"]["total"] == 0
+
+
+def test_recording_qc_detail_owner_only(client, db, auth_header):
+    """质检详情：按 (user, text) 聚合全历史倒序；仅本人；404/403；无日志 items 空"""
+    t = Text(content="上盘镇", dialect="临海方言", category="place",
+             region_code="331004", dialect_code="dh_lh")
+    db.add(t)
+    db.commit()
+    rec = Recording(user_id=1, text_id=t.id, file_path="f.wav", file_size=1, duration=1.0,
+                    region_code="331004", dialect_code="dh_lh", qc_status="failed")
+    db.add(rec)
+    db.flush()
+    base = datetime(2026, 9, 24, 10, 0, 0)
+    db.add_all([
+        QCLog(recording_id=999, user_id=1, text_id=t.id, text_content="上盘镇",
+              asr_text="最早一次失败", similarity=0.2, result="failed",
+              created_at=base),
+        QCLog(recording_id=rec.id, user_id=1, text_id=t.id, text_content="上盘镇",
+              asr_text="", similarity=None, result="error", error_message="asr down",
+              created_at=base + timedelta(minutes=1)),
+        QCLog(recording_id=rec.id, user_id=1, text_id=t.id, text_content="上盘镇",
+              asr_text="最近一次转译", similarity=0.25, result="failed",
+              created_at=base + timedelta(minutes=2)),
+    ])
+    db.commit()
+
+    r = client.get(f"/api/recordings/{rec.id}/qc", headers=auth_header)
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["recording_id"] == rec.id and data["text_content"] == "上盘镇"
+    assert len(data["items"]) == 3                 # 含挂旧 recording_id 的历史流水
+    assert [i["asr_text"] for i in data["items"]] == ["最近一次转译", "", "最早一次失败"]  # 倒序
+    assert data["items"][1]["similarity"] is None and data["items"][1]["error_message"] == "asr down"
+
+    other = make_user(db, phone="33100400003", name="民警二号")
+    assert client.get(f"/api/recordings/{rec.id}/qc", headers=auth_of(other)).status_code == 403
+    assert client.get("/api/recordings/999/qc", headers=auth_header).status_code == 404
+
+    # pending 且无质检日志 → items 为空
+    t2 = Text(content="第二条文本", dialect="临海方言", category="police",
+              region_code="331004", dialect_code="dh_lh")
+    db.add(t2)
+    db.commit()
+    rec2 = Recording(user_id=1, text_id=t2.id, file_path="g.wav", file_size=1, duration=1.0,
+                     region_code="331004", dialect_code="dh_lh", qc_status="pending")
+    db.add(rec2)
+    db.commit()
+    assert client.get(f"/api/recordings/{rec2.id}/qc", headers=auth_header).json()["data"]["items"] == []
 
 
 def test_file_download_permissions(client, db, auth_header, tmp_path):

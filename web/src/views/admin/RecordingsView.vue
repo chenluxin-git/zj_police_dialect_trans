@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /**
  * 录音管理（dome/admin-recordings.html 1:1）：类别/质检状态/关键词筛选 + 表格
- * 试听（audioManager 单声道，带 token 转 Blob）+ 下载。
+ * 试听（audioManager 单声道，带 token 转 Blob）+ 下载 + 质检比对详情（QcDetailDialog）。
  * 注：后端管理端仅提供列表（GET /admin/recordings），无管理端删除端点，故本页不含删除（与 dome 的删除键有偏差）。
  */
 import { onMounted, ref } from "vue"
 import { useBlobPlayer, downloadBlob } from "@/composables/useBlobDownload"
+import QcDetailDialog from "@/components/QcDetailDialog.vue"
 import { CATEGORY_OPTIONS, categoryLabel, categoryTagClass } from "@/constants/category"
 import { QC_FILTER_OPTIONS, qcLabel, qcTagClass } from "@/constants/qc"
 import {
+  fetchAdminRecordingQc,
   fetchAudioBlob,
   listAdminRecordings,
   type AdminRecording,
@@ -80,6 +82,16 @@ async function download(row: AdminRecording) {
   downloadBlob(blob, `recording_${row.id}.wav`)
 }
 
+const qcVisible = ref(false)
+const qcTargetId = ref<number | null>(null)
+const qcSubtitle = ref("")
+
+function openQc(row: AdminRecording) {
+  qcTargetId.value = row.id
+  qcSubtitle.value = `${row.user_name} · ${row.text_content}`
+  qcVisible.value = true
+}
+
 onMounted(() => void load())
 </script>
 
@@ -87,7 +99,7 @@ onMounted(() => void load())
   <div class="zp-content" style="padding: 0">
     <div class="zp-page-head">
       <h1>录音管理</h1>
-      <span class="sub">辖区全部采集录音 · 支持质检状态筛选、试听与下载</span>
+      <span class="sub">辖区全部采集录音 · 支持质检状态筛选、试听、质检比对与下载</span>
     </div>
 
     <!-- 筛选栏 -->
@@ -129,6 +141,7 @@ onMounted(() => void load())
               <td><span class="zp-tag" :class="qcTagClass(row.qc_status)">{{ qcLabel(row.qc_status) }}</span></td>
               <td class="num">{{ fmtDateTime(row.created_at) }}</td>
               <td class="zp-text-right">
+                <button class="zp-btn zp-btn--text" type="button" @click="openQc(row)">质检</button>
                 <button class="zp-btn zp-btn--text" type="button" @click="listen(row)">播放</button>
                 <button class="zp-btn zp-btn--text" type="button" @click="download(row)">下载</button>
               </td>
@@ -150,5 +163,7 @@ onMounted(() => void load())
         />
       </div>
     </div>
+
+    <QcDetailDialog v-model="qcVisible" :recording-id="qcTargetId" :fetch-qc="fetchAdminRecordingQc" :subtitle="qcSubtitle" />
   </div>
 </template>

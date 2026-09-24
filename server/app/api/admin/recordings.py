@@ -1,11 +1,12 @@
 """T18 管理端录音管理：scope 列表（行含 用户姓名/文本/类别/方言/时长/大小/质检状态/时间 + file_url）
 试听直接复用用户侧 /api/recordings/{id}/file（P-media 已放行管理员 scope 命中，本包不改该端点）
++ /{id}/qc 质检文本对比详情（按 (user, text) 聚合 qc_logs 全历史，scope 权限与列表一致）
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ...core.database import get_db
-from ...models import Recording, Text, User
+from ...models import QCLog, Recording, Text, User
 from ...schemas import ok
 from ..deps import require_admin, resolve_scope, scope_filter
 
@@ -61,3 +62,40 @@ def list_recordings(
         for rec, text, user in rows
     ]
     return ok({"items": items, "total": total, "page": page, "page_size": page_size})
+
+
+@router.get("/{recording_id}/qc")
+def recording_qc_detail(
+    recording_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """质检文本对比（scope 权限与列表/试听一致）：按 (user_id, text_id) 聚合 qc_logs 全历史倒序"""
+    rec = db.get(Recording, recording_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="录音不存在")
+    scope = resolve_scope(db, admin)
+    if scope is not None and rec.region_code not in scope:
+        raise HTTPException(status_code=403, detail="无权访问辖区外录音")
+    text = db.get(Text, rec.text_id)
+    logs = (db.query(QCLog)
+            .filter(QCLog.user_id == rec.user_id, QCLog.text_id == rec.text_id)
+            .order_by(QCLog.created_at.desc(), QCLog.id.desc()).all())
+    items = [
+        {
+            "id": g.id,
+            "result": g.result,
+            "similarity": g.similarity,
+            "asr_text": g.asr_text,
+            "text_content": g.text_content,
+            "error_message": g.error_message,
+            "created_at": g.created_at.isoformat() if g.created_at else None,
+        }
+        for g in logs
+    ]
+    return ok({
+        "recording_id": rec.id,
+        "text_id": rec.text_id,
+        "text_content": text.content if text else "（文本已删除）",
+        "items": items,
+    })

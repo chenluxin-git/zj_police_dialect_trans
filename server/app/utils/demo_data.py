@@ -7,6 +7,7 @@
 本脚本按现有业务规则直接落库，并生成真实的占位 WAV 文件（录音试听/导出可用）：
 - texts：按区县生成朗读文本（类别覆盖 警情/生活/俚语/地名）
 - recordings：民警已通过质检的采集录音（qc_status='passed'）+ 少量待质检积压
+  + 少量质检未通过（qc_status='failed'，附 qc_logs 原文/转译比对流水，供对比弹窗演示）
 - audio_files：从本地录音派生素材（保证标注译文与音频内容对应）+ annotations
 - tasks：按区县给民警下达录音/标注指标，各市完成率刻意拉开差距
 
@@ -16,7 +17,7 @@
     .venv/Scripts/python -m app.utils.demo_data --seed 1234 # 固定随机种子
 
 安全：只删/写 texts / text_assignments / recordings / audio_files / file_assignments /
-annotations / tasks 七张业务表，**不动 users / regions / dialects / police_stations**。
+annotations / tasks / qc_logs 八张业务表，**不动 users / regions / dialects / police_stations**。
 """
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ from ..models import (
     AudioFile,
     Dialect,
     FileAssignment,
+    QCLog,
     Recording,
     Region,
     Task,
@@ -97,6 +99,12 @@ PAIRS_BY_CATEGORY = {
     "place": PAIRS_PLACE,
     "dirty": PAIRS_DIRTY,
 }
+# 与该类别不同的句子池：给 failed 演示行凑一个低相似度的"转译文本"
+_OTHER_PAIRS = {
+    cat: [p for c, ps in PAIRS_BY_CATEGORY.items() if c != cat for p in ps]
+    for cat in PAIRS_BY_CATEGORY
+}
+FAILED_RATIO = 0.06  # 已质检录音中"未通过"占比（演示红 tag + 对比弹窗）
 
 # ---------------------------------------------------------------- 各市投放强度
 # 刻意拉开差距，好让「分市排行 / 红黑榜」在界面上有内容
@@ -160,7 +168,7 @@ def _spread_time(rng: random.Random, now: datetime) -> datetime:
 
 def reset_business_data(db) -> None:
     """只清业务表，保留账号与基础数据。"""
-    for model in (Annotation, FileAssignment, AudioFile, Recording,
+    for model in (Annotation, FileAssignment, AudioFile, QCLog, Recording,
                   TextAssignment, Text, Task):
         db.query(model).delete()
     db.commit()
@@ -168,7 +176,7 @@ def reset_business_data(db) -> None:
 
 def run(db, rng: random.Random, reset: bool) -> dict:
     now = datetime.now()
-    st = {"texts": 0, "recordings": 0, "pending": 0, "audio_files": 0,
+    st = {"texts": 0, "recordings": 0, "pending": 0, "failed": 0, "audio_files": 0,
           "annotations": 0, "tasks": 0, "users_active": 0, "wav": 0}
 
     if reset:
@@ -239,19 +247,33 @@ def run(db, rng: random.Random, reset: bool) -> dict:
                 for t in rng.sample(pool, cnt):
                     dur = round(rng.uniform(4.0, 18.0), 2)
                     is_pending = rng.random() < pending_ratio
+                    is_failed = (not is_pending) and rng.random() < FAILED_RATIO
                     path = os.path.join(storage, _user_folder(u), f"demo_{u.id}_{t.id}.wav")
                     size = _write_wav(path, dur, freq=rng.choice([180, 220, 260, 300]))
                     st["wav"] += 1
+                    qc_status = "pending" if is_pending else ("failed" if is_failed else "passed")
                     rec = Recording(
                         user_id=u.id, text_id=t.id, file_path=path, file_size=size,
                         duration=dur, region_code=d.code, dialect_code=dcode,
-                        qc_status="pending" if is_pending else "passed",
+                        qc_status=qc_status,
                         created_at=_spread_time(rng, now),
                     )
                     db.add(rec)
                     db.flush()
                     if is_pending:
                         st["pending"] += 1
+                    elif is_failed:
+                        # 配套质检流水：转译文本取"别的类别"的句子凑低相似，演示对比弹窗
+                        st["failed"] += 1
+                        asr_text = rng.choice(
+                            _OTHER_PAIRS.get(t.category, PAIRS_LIFE))[0]
+                        db.add(QCLog(
+                            recording_id=rec.id, user_id=u.id, text_id=t.id,
+                            text_content=t.content, asr_text=asr_text,
+                            similarity=round(rng.uniform(0.2, 0.4), 2),
+                            result="failed",
+                            created_at=rec.created_at + timedelta(seconds=rng.randint(5, 120)),
+                        ))
                     else:
                         rec_translation[(d.code, rec.id)] = translation_of.get(
                             (d.code, t.content), "（未提供译文）")
@@ -364,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\n演示数据生成完成：")
     print(f"  文本        {st['texts']:>7} 条")
-    print(f"  录音        {st['recordings']:>7} 条（其中待质检积压 {st['pending']} 条）")
+    print(f"  录音        {st['recordings']:>7} 条（待质检积压 {st['pending']} / 未通过 {st['failed']}）")
     print(f"  音频素材    {st['audio_files']:>7} 条")
     print(f"  标注        {st['annotations']:>7} 条")
     print(f"  任务        {st['tasks']:>7} 条")

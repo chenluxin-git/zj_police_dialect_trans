@@ -18,8 +18,15 @@ from sqlalchemy.orm import Session
 from ..api.deps import get_current_user, resolve_scope
 from ..core.config import settings
 from ..core.database import get_db
-from ..models import Dialect, Recording, Text, TextAssignment, User
-from ..schemas.recording import ApiResponse, PageData, RecordingItem, UploadResultData
+from ..models import Dialect, QCLog, Recording, Text, TextAssignment, User
+from ..schemas.recording import (
+    ApiResponse,
+    PageData,
+    QcDetailData,
+    QcLogItem,
+    RecordingItem,
+    UploadResultData,
+)
 from ..services import audit
 from ..services.qc import trigger_qc
 
@@ -67,8 +74,20 @@ async def upload_recording(
     text = db.get(Text, text_id)
     if text is None:
         raise HTTPException(status_code=404, detail="文本不存在")
-    if db.query(Recording).filter_by(user_id=current_user.id, text_id=text_id).first():
-        raise HTTPException(status_code=400, detail="该文本已录制过")  # unique(user_id, text_id)
+    existing = db.query(Recording).filter_by(
+        user_id=current_user.id, text_id=text_id).first()
+    if existing:
+        if existing.qc_status != "failed":
+            raise HTTPException(status_code=400, detail="该文本已录制过")  # unique(user_id, text_id)
+        # failed 重录：删旧 failed 行（含盘上文件）再插新行，unique 约束不动；
+        # qc_logs 流水无外键保留，质检详情按 (user, text) 聚合仍可追溯历史
+        if existing.file_path and os.path.exists(existing.file_path):
+            try:
+                os.remove(existing.file_path)
+            except OSError:
+                logger.warning("重录删旧 failed 文件失败 %s", existing.file_path)
+        db.delete(existing)
+        db.commit()
 
     is_custom = text.category == "custom"
     assignment = db.query(TextAssignment).filter_by(
@@ -182,6 +201,35 @@ def download_recording(
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(rec.file_path, media_type="audio/wav",
                         filename=os.path.basename(rec.file_path))
+
+
+@router.get("/{recording_id}/qc", response_model=ApiResponse[QcDetailData])
+def recording_qc_detail(
+    recording_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """质检文本对比（仅本人）：按 (user_id, text_id) 聚合 qc_logs 全历史倒序，
+    含重录替换旧行之前的失败/异常流水——民警能看到历次"为什么没过"。"""
+    rec = db.get(Recording, recording_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="录音不存在")
+    if rec.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权访问")
+    text = db.get(Text, rec.text_id)
+    logs = (db.query(QCLog)
+            .filter(QCLog.user_id == rec.user_id, QCLog.text_id == rec.text_id)
+            .order_by(QCLog.created_at.desc(), QCLog.id.desc()).all())
+    return ApiResponse[QcDetailData](data=QcDetailData(
+        recording_id=rec.id,
+        text_id=rec.text_id,
+        text_content=text.content if text else "（文本已删除）",
+        items=[QcLogItem(
+            id=g.id, result=g.result, similarity=g.similarity, asr_text=g.asr_text,
+            text_content=g.text_content, error_message=g.error_message,
+            created_at=g.created_at,
+        ) for g in logs],
+    ))
 
 
 @router.delete("/{recording_id}", response_model=ApiResponse)

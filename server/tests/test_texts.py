@@ -48,6 +48,18 @@ def test_assign_skips_own_recorded_text(client, db, auth_header):
     assert r.json()["data"]["text_id"] == texts[1].id
 
 
+def test_assign_returns_own_failed_text(client, db, auth_header):
+    """failed 文本释放回池：质检未通过的文本可重新领到重录"""
+    texts = seed_texts(db, contents=("质检没过的文本",))
+    db.add(Recording(user_id=1, text_id=texts[0].id, file_path="a.wav", file_size=1,
+                     duration=1.0, region_code="331004", dialect_code="dh_lh",
+                     qc_status="failed"))
+    db.commit()
+    r = client.post("/api/texts/assign", headers=auth_header)
+    assert r.status_code == 200
+    assert r.json()["data"]["text_id"] == texts[0].id
+
+
 def test_assign_lazy_recovers_expired_lock(client, db, auth_header):
     texts = seed_texts(db, contents=("唯一文本",))
     r = client.post("/api/texts/assign", headers=auth_header)
@@ -123,6 +135,25 @@ def test_refresh_resets_lock(client, db, auth_header):
     db.expire_all()
     a2 = db.query(TextAssignment).one()
     assert (datetime.now() - a2.assigned_at).total_seconds() < 10  # assigned_at 已重置
+
+
+def test_refresh_allows_failed_but_blocks_pending(client, db, auth_header):
+    """续期的"已被录制"检查：failed 行不算（文本已释放），pending/passed 仍拦截"""
+    texts = seed_texts(db, contents=("失败可续期文本", "在质检不可续期文本"))
+
+    db.add(TextAssignment(text_id=texts[0].id, user_id=1))
+    db.add(Recording(user_id=1, text_id=texts[0].id, file_path="a.wav", file_size=1,
+                     duration=1.0, region_code="331004", dialect_code="dh_lh",
+                     qc_status="failed"))
+    r1 = client.post(f"/api/texts/assign/{texts[0].id}/refresh", headers=auth_header)
+    assert r1.status_code == 200                                   # failed 不拦
+
+    db.add(TextAssignment(text_id=texts[1].id, user_id=1))
+    db.add(Recording(user_id=1, text_id=texts[1].id, file_path="b.wav", file_size=1,
+                     duration=1.0, region_code="331004", dialect_code="dh_lh",
+                     qc_status="pending"))
+    r2 = client.post(f"/api/texts/assign/{texts[1].id}/refresh", headers=auth_header)
+    assert r2.status_code == 400 and "已被录制" in r2.json()["detail"]  # pending 拦截
 
     # 无分配的文本不可续期
     r3 = client.post("/api/texts/assign/999/refresh", headers=auth_header)

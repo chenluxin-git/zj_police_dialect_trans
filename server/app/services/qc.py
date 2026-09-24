@@ -1,6 +1,7 @@
 r"""T9 录音异步质检服务（计划 2026-09-22-implementation-plan.md 任务 9 参考实现）：
 - 相似度 = 1 - levenshtein/max(len)：normalize 去标点（只留数字/字母/汉字）+ 小写
-- ≥阈值(默认0.5) passed；< 阈值 failed=删录音+删文件+站内信通知重录（unique 解除，同文本可重录）
+- ≥阈值(默认0.5) passed；< 阈值 failed=标记未通过并保留（行/文件都在，可试听对比），站内信通知重录
+  （文本回池由 texts.assign 按 qc_status 排除实现；重录时上传端删旧 failed 行再插新行，unique 不动）
 - ASR 接口异常：记 qc_logs(result=error) 留 pending，绝不误删；error 计数 ≥ QC_MAX_RETRY(3) 跳过留人工
 - asr_upstream_base 为空 = 质检停用：pending 直通 passed 且不写 qc_logs
 - qc_loop 60s 扫一轮（asyncio.to_thread 跑同步 process_pending，不阻塞事件循环）
@@ -102,19 +103,16 @@ def process_one(db, rec: Recording) -> None:
                      text_content=content, asr_text=asr, similarity=sim, result="passed"))
         db.commit()
         return
-    rid, uid, path = rec.id, rec.user_id, rec.file_path
+    rid, uid = rec.id, rec.user_id
     db.add(QCLog(recording_id=rid, user_id=uid, text_id=rec.text_id,
                  text_content=content, asr_text=asr, similarity=sim, result="failed"))
-    db.delete(rec)  # unique 解除，同文本可重录
+    rec.qc_status = "failed"  # 保留行+文件（可试听对比）；文本回池见 texts.assign
     send_message(db, [uid], "录音质检未通过",
                  f"你上传的录音「{content}」经方言转译接口比对，相似度 {sim:.0%}，"
                  f"低于 {settings.qc_similarity_threshold:.0%} 阈值，判定不合格。"
-                 f"该录音已移除，请前往「录音采集」重新录制。", sender_id=None)
+                 f"该录音已保留在「历史录音」中并标记为未通过，对应文本已释放，"
+                 f"请前往「录音采集」重新领取该文本录制。", sender_id=None)
     db.commit()
-    try:
-        os.remove(path)
-    except OSError:
-        logger.warning("qc 删文件失败 %s", path)
 
 
 def process_pending() -> None:

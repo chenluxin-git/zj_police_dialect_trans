@@ -32,6 +32,7 @@ from .api.auth import router as auth_router
 from .api.base import router as base_router
 from .api.texts import router as texts_router
 from .api.recordings import router as recordings_router
+from .api.transcriptions import router as transcriptions_router  # 语音转译（工作台）
 from .api.tasks import router as tasks_router  # P-social(T12)：我的任务进度
 from .api.messages import router as messages_router  # P-social(T13)：站内消息
 from .api.annotations import router as annotations_router
@@ -44,6 +45,7 @@ from .api.admin.text_import import router as admin_text_import_router, manage_ro
 from .api.admin.audio_upload import router as admin_audio_upload_router  # P-admin-content(T19)
 from .api.admin.audio_import import router as admin_audio_import_router  # P-admin-content(T19)
 from .api.admin import admin_recordings_router, admin_annotations_router  # P-admin-data(T18)
+from .api.admin import admin_transcriptions_router  # 管理端-转译记录
 from .api.admin import admin_stats_router  # P-admin-data(T20)
 from .api.admin import admin_tasks_router  # P-admin-data(T21)
 from .api.admin import admin_messages_router  # P-admin-data(T22)
@@ -55,6 +57,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(base_router, prefix="/api")
 app.include_router(texts_router, prefix="/api")
 app.include_router(recordings_router, prefix="/api")
+app.include_router(transcriptions_router, prefix="/api")  # 语音转译：/api/transcriptions/*
 app.include_router(tasks_router)
 app.include_router(messages_router)
 app.include_router(annotations_router, prefix="/api")
@@ -68,6 +71,7 @@ app.include_router(admin_text_import_manage_router, prefix="/api/admin")
 app.include_router(admin_audio_upload_router, prefix="/api/admin")
 app.include_router(admin_audio_import_router, prefix="/api/admin")
 app.include_router(admin_recordings_router, prefix="/api/admin")  # P-admin-data(T18)
+app.include_router(admin_transcriptions_router, prefix="/api/admin")  # 管理端-转译记录
 app.include_router(admin_annotations_router, prefix="/api/admin")  # P-admin-data(T18)
 app.include_router(admin_stats_router, prefix="/api/admin")  # P-admin-data(T20)
 app.include_router(admin_tasks_router, prefix="/api/admin")  # P-admin-data(T21)
@@ -174,9 +178,12 @@ async def on_startup() -> None:
     # T9 接入: 后台质检循环（60s 一轮；asr_upstream_base 空时直通，见 services/qc.py）
     from .services.qc import qc_loop
     asyncio.create_task(qc_loop())
+    # 语音转译后台泵（3s 一轮串行识别，见 services/transcription.py）
+    from .services.transcription import trans_loop
+    asyncio.create_task(trans_loop())
     # 浙警智治接入：审计上报循环（失败本地缓存重推）+ 统一用户增量同步循环
     from .services.audit import audit_loop
     from .services.org_sync import org_sync_loop
     asyncio.create_task(audit_loop())
     asyncio.create_task(org_sync_loop())
-    logger.info("启动完成：后台循环已拉起（质检 / 审计上报 / 组织同步）")
+    logger.info("启动完成：后台循环已拉起（质检 / 转译泵 / 审计上报 / 组织同步）")

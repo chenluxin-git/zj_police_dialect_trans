@@ -1,4 +1,4 @@
-/* 演示页通用交互（轻量）：菜单高亮 / 弹窗 / 选项卡 / 轻提示 */
+/* 演示页通用交互（轻量）：菜单高亮 / 弹窗 / 选项卡 / 轻提示 / 二级菜单展开 */
 (function () {
   /* 1. 侧栏当前页高亮：<body data-page="record"> 对应 a[data-page] */
   var page = document.body.dataset.page;
@@ -7,6 +7,24 @@
       a.classList.add('is-active');
     });
   }
+
+  /* 5. 二级菜单：点组头切换展开/收起（.is-open 控制箭头旋转与子菜单显隐，见 theme.css 补丁段） */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.zp-menu-group-btn');
+    if (!btn) return;
+    btn.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded', btn.classList.contains('is-open') ? 'true' : 'false');
+  });
+
+  /* 6. 自动展开当前页所在的组：高亮子项落在一侧 .zp-menu-sub 内时，给其前面的组头补 .is-open */
+  document.querySelectorAll('.zp-menu-sub a.is-active').forEach(function (a) {
+    var sub = a.closest('.zp-menu-sub');
+    var btn = sub && sub.previousElementSibling;
+    if (btn && btn.classList.contains('zp-menu-group-btn')) {
+      btn.classList.add('is-open');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+  });
 
   /* 2. 弹窗：[data-open="#id"] 打开 / [data-close] 关闭 / 点遮罩关闭 */
   document.addEventListener('click', function (e) {

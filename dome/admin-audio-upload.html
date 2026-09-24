@@ -23,14 +23,32 @@
       </svg>
       <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
     </div>
+
     <nav class="zp-menu">
       <div class="zp-menu-group">
         <div class="zp-menu-title">日常工作</div>
-        <a href="home.html" data-page="home">首页</a>
-        <a href="record.html" data-page="record">录音采集</a>
-        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
-        <a href="annotation.html" data-page="annotation">录音标注</a>
-        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+        <a href="admin-overview.html" data-page="home">首页</a>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音采集
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="record.html" data-page="record">开始录音</a>
+          <a href="my-recordings.html" data-page="my-recordings">历史录音</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音标注
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="annotation.html" data-page="annotation">开始标注</a>
+          <a href="my-annotations.html" data-page="my-annotations">历史标注</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">语音转译
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="trans-work.html" data-page="trans-work">工作台</a>
+          <a href="trans-history.html" data-page="trans-history">历史记录</a>
+        </div>
       </div>
       <div class="zp-menu-group">
         <div class="zp-menu-title">消息</div>
@@ -38,36 +56,50 @@
       </div>
       <div class="zp-menu-group">
         <div class="zp-menu-title">管理工作</div>
-        <a href="admin-overview.html" data-page="admin-overview">数据总览</a>
-        <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">语料管理
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="admin-texts.html" data-page="admin-texts">语料浏览</a>
+          <a href="admin-text-import.html" data-page="admin-text-import">批量导入</a>
+          <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">音频素材
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="admin-audio-upload.html" data-page="admin-audio-upload">上传入库</a>
+          <a href="admin-audio-import.html" data-page="admin-audio-import">扫盘导入</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">采集记录
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="admin-recordings.html" data-page="admin-recordings">录音记录</a>
+          <a href="admin-annotations.html" data-page="admin-annotations">标注记录</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">人员与任务
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="admin-users.html" data-page="admin-users">人员管理</a>
+          <a href="admin-tasks.html" data-page="admin-tasks">任务管理</a>
+        </div>
         <a href="admin-message-send.html" data-page="admin-message-send">消息发送</a>
-        <a href="admin-users.html" data-page="admin-users">用户管理</a>
-        <a href="admin-text-import.html" data-page="admin-text-import">文本导入</a>
-        <a href="admin-text-import-manage.html" data-page="admin-text-import-manage">导入台账</a>
-        <a href="admin-texts.html" data-page="admin-texts">文本管理</a>
-        <a href="admin-recordings.html" data-page="admin-recordings">录音管理</a>
-        <a href="admin-annotations.html" data-page="admin-annotations">标注管理</a>
-        <a href="admin-audio-upload.html" data-page="admin-audio-upload">音频上传</a>
-        <a href="admin-audio-import.html" data-page="admin-audio-import">音频导入</a>
         <a href="admin-export.html" data-page="admin-export">数据集导出</a>
       </div>
-    </nav>
-    <div class="zp-side-user">
-      <span class="zp-avatar zp-avatar--gold">临</span>
-      <dl><dt>临海管理员</dt><dd>临海市公安局 · 区县管理员</dd></dl>
-      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
-    </div>
+    </nav>
   </aside>
 
   <div class="zp-main">
     <header class="zp-topbar">
-      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><b>音频上传</b></nav>
+      <nav class="zp-crumb"><span>管理工作</span><span class="sep">/</span><span>音频素材</span><span class="sep">/</span><b>上传入库</b></nav>
       <div class="zp-topbar-right">
         <button class="zp-bell" aria-label="消息">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
         </button>
         <span class="zp-vline"></span>
-        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<span class="role">区县管理员</span></div>
+        <div class="zp-topbar-user"><span class="zp-avatar zp-avatar--gold" style="width:30px;height:30px;font-size:12px">临</span>临海管理员<button class="zp-exit" data-toast="演示：退出登录">退出</button></div>
       </div>
     </header>
 

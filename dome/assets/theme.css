@@ -1,7 +1,9 @@
 /* =========================================================
    浙江公安方言语料采集平台 · 静态演示主题
    目录：dome/assets/theme.css
-   说明：token + 管理壳 + 组件（与 Element Plus 形态对齐）
+   说明：与 web/src/styles/theme.css 全量同步（web 为准，2026-09-24），
+        含二级菜单 / EP 变量映射 / zp-dialect 常规字体 / 顶栏退出按钮等演进；
+        文件末尾"dome 专用补丁"段为静态稿独有，不回灌 web
    ========================================================= */
 
 :root{
@@ -38,6 +40,37 @@
   --radius-lg:10px;
   --shadow-card:0 1px 2px rgba(14,36,64,.06),0 2px 8px rgba(14,36,64,.05);
   --shadow-pop:0 8px 28px rgba(10,27,50,.18);
+  /* 组件层别名（业务代码统一引用 --zp-*） */
+  --zp-navy:var(--navy-900);
+  --zp-navy-deep:var(--navy-950);
+  --zp-primary:var(--navy-700);
+  --zp-gold:var(--gold-500);
+  --zp-paper:var(--paper);
+  --zp-ink:var(--ink);
+  --zp-line:var(--line);
+}
+
+/* Element Plus 主题变量映射（全量引入下覆盖 CSS 变量即可） */
+:root{
+  --el-color-primary:var(--navy-700);
+  --el-color-primary-light-3:var(--navy-600);
+  --el-color-primary-light-5:var(--blue-500);
+  --el-color-primary-light-7:var(--blue-100);
+  --el-color-primary-light-8:var(--blue-100);
+  --el-color-primary-light-9:var(--blue-50);
+  --el-color-primary-dark-2:var(--navy-800);
+  --el-color-success:var(--ok);
+  --el-color-warning:var(--warn);
+  --el-color-danger:var(--danger);
+  --el-color-error:var(--danger);
+  --el-border-radius-base:var(--radius);
+  --el-font-family:var(--sans);
+  --el-text-color-primary:var(--ink);
+  --el-text-color-regular:var(--ink-2);
+  --el-text-color-secondary:var(--ink-3);
+  --el-border-color:var(--line-strong);
+  --el-border-color-light:var(--line);
+  --el-fill-color-light:var(--blue-50);
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -81,27 +114,45 @@ a:hover{color:var(--navy-700)}
 }
 .zp-menu a{
   display:flex;align-items:center;justify-content:space-between;
-  color:#9FB3CE;padding:9px 10px;margin:1px 0;border-radius:var(--radius);
+  color:#9FB3CE;font-size:14px;padding:9px 10px;margin:1px 0;border-radius:var(--radius);
   border-left:3px solid transparent;transition:background .15s,color .15s;
 }
 .zp-menu a:hover{background:rgba(255,255,255,.06);color:#fff}
-.zp-menu a.is-active{
+.zp-menu a.is-active,
+.zp-menu a.router-link-exact-active{
   background:var(--navy-800);color:#fff;border-left-color:var(--gold-500);
 }
 .zp-menu a .zp-dot-badge{margin-left:auto}
-.zp-side-user{
-  border-top:1px solid rgba(255,255,255,.08);
-  padding:12px 16px;display:flex;align-items:center;gap:10px;
+
+/* 侧栏二级菜单：可展开组头 + 缩进子项
+   注意：一级（直接项 + 组头）与二级项字号必须一致（均 14px，继承 body），
+   层级靠缩进 + 连接竖线 + 颜色深浅表达，不靠字号。 */
+.zp-menu-group-btn{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;background:none;border:none;border-left:3px solid transparent;
+  color:#9FB3CE;font-size:14px;font-family:inherit;text-align:left;
+  padding:9px 10px;margin:1px 0;border-radius:var(--radius);cursor:pointer;
+  transition:background .15s,color .15s;
 }
-.zp-side-user .zp-avatar{flex:none}
-.zp-side-user dl{line-height:1.4;min-width:0}
-.zp-side-user dt{color:#fff;font-size:13px}
-.zp-side-user dd{color:#7E93B4;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.zp-side-user .zp-exit{
-  margin-left:auto;color:#7E93B4;font-size:12px;background:none;border:none;cursor:pointer;
-  padding:4px 6px;border-radius:4px;
+.zp-menu-group-btn:hover{background:rgba(255,255,255,.06);color:#fff}
+.zp-menu-group-btn.is-open{background:var(--navy-800);color:#fff;border-left-color:var(--gold-500)}
+/* 箭头与文字同字号：必须显式给 width/height。
+   本图标没有 el-icon 包裹，而只有 viewBox 的 <svg> 默认宽高是 300×150，
+   只设 font-size 不会生效（element-plus 的 .el-icon svg{width:1em} 依赖 el-icon 包裹）。 */
+.zp-menu-group-btn .zp-menu-caret{
+  width:1em;height:1em;color:#5F7699;flex:none;
+  transition:transform .15s ease,color .15s ease;
 }
-.zp-side-user .zp-exit:hover{color:#fff;background:rgba(255,255,255,.08)}
+.zp-menu-group-btn.is-open .zp-menu-caret{transform:rotate(90deg);color:var(--gold-500)}
+.zp-menu-sub{padding-left:9px;margin-left:10px;border-left:1px solid rgba(255,255,255,.1)}
+.zp-menu-sub a{
+  font-size:14px;color:#8AA0C0;padding:7px 10px;border-left:3px solid transparent;
+}
+.zp-menu-sub a:hover{background:rgba(255,255,255,.06);color:#fff}
+.zp-menu-sub a.is-active,
+.zp-menu-sub a.router-link-exact-active{
+  background:var(--navy-800);color:#fff;border-left-color:var(--gold-500);
+}
 
 /* 头像 */
 .zp-avatar{
@@ -134,7 +185,11 @@ a:hover{color:var(--navy-700)}
   line-height:15px;font-size:10px;padding:0 4px;
 }
 .zp-topbar-user{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2)}
-.zp-topbar-user .role{color:var(--ink-3)}
+.zp-topbar-user .zp-exit{
+  margin-left:4px;font-size:12px;color:var(--ink-3);background:none;
+  border:1px solid var(--line);cursor:pointer;padding:4px 12px;border-radius:6px;
+}
+.zp-topbar-user .zp-exit:hover{color:var(--danger);border-color:var(--danger)}
 .zp-vline{width:1px;height:18px;background:var(--line)}
 
 /* 内容区 */
@@ -391,9 +446,9 @@ a:hover{color:var(--navy-700)}
 
 /* ============ 业务组件 ============ */
 
-/* 方言文本展示（宋体材质） */
+/* 方言文本展示（正常字体、黑色） */
 .zp-dialect{
-  font-family:var(--serif);font-size:22px;line-height:1.7;color:var(--navy-900);
+  font-size:22px;line-height:1.7;color:var(--ink);
 }
 .zp-dialect--sm{font-size:16px}
 
@@ -542,7 +597,6 @@ a:hover{color:var(--navy-700)}
   flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--ink);
 }
-.zp-line-list .txt em{font-style:normal;font-family:var(--serif)}
 .zp-line-list .time{color:var(--ink-3);flex:none;font-size:12px}
 
 /* ============ 工具类 ============ */
@@ -557,21 +611,35 @@ a:hover{color:var(--navy-700)}
 .zp-text-right{text-align:right}
 .zp-center{text-align:center}
 .zp-serif{font-family:var(--serif)}
-.zp-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.zp-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+/* 网格说明：用 auto-fit + minmax 让列数随「可用宽度」自动变化，而不是靠固定断点。
+   固定 1fr 1fr 只在某个断点跳一次，中间宽度会被硬挤压；auto-fit 会自己增减列数。
+   minmax 下限 = 每个格子铺得开所需的最小宽度，低于它就自动掉列。
+   参照：.zp-content 为 max-width:1320px + 左右各 24px padding，
+   故最大可用宽度约 1024px（更窄的页面用 max-width:880px，可用约 832px）。 */
+.zp-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+/* 下限取 215px：当前唯一用处是「音频扫盘」的 4 个结果统计格，
+   标签较长（如「跳过（路径重复）」），压到 170px 会折行，故与统计卡同档 */
+.zp-grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px}
+/* 概览统计卡（原为 OverviewView 局部样式，收拢到全局统一按可用宽度自适应）
+   下限取 215px：1024px 下 4 列 / 832px 下 3 列，避免数字卡被压得换行 */
+.zp-overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px}
 
 /* ============ 响应式与可访问性 ============ */
+/* 栅格列数已由上面的 auto-fit/minmax 自适应，这里只保留与栅格无关的断点 */
 @media (max-width:1080px){
   .zp-quick{grid-template-columns:repeat(3,1fr)}
-  .zp-grid-4{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:960px){
   .zp-app{grid-template-columns:1fr}
   .zp-side{display:none}   /* 演示稿：窄屏简化，落地时改为抽屉 */
   .zp-auth{grid-template-columns:1fr}
   .zp-auth-panel{display:none}
-  .zp-grid-2{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+
+/* ============ dome 专用补丁（静态稿独有，不回灌 web） ============ */
+/* 静态页无 Vue v-show：组头未展开时隐藏二级菜单（web 中由 v-show 内联样式实现） */
+.zp-menu-group-btn:not(.is-open) + .zp-menu-sub{display:none}
+

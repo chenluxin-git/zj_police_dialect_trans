@@ -16,37 +16,50 @@
       </svg>
       <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
     </div>
+
     <nav class="zp-menu">
       <div class="zp-menu-group">
         <div class="zp-menu-title">日常工作</div>
         <a href="home.html" data-page="home">首页</a>
-        <a href="record.html" data-page="record">录音采集</a>
-        <a href="my-recordings.html" data-page="my-recordings">我的录音</a>
-        <a href="annotation.html" data-page="annotation">录音标注</a>
-        <a href="my-annotations.html" data-page="my-annotations">我的标注</a>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音采集
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="record.html" data-page="record">开始录音</a>
+          <a href="my-recordings.html" data-page="my-recordings">历史录音</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音标注
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="annotation.html" data-page="annotation">开始标注</a>
+          <a href="my-annotations.html" data-page="my-annotations">历史标注</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">语音转译
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="trans-work.html" data-page="trans-work">工作台</a>
+          <a href="trans-history.html" data-page="trans-history">历史记录</a>
+        </div>
       </div>
       <div class="zp-menu-group">
         <div class="zp-menu-title">消息</div>
         <a href="messages.html" data-page="messages">我的消息<span class="zp-dot-badge">4</span></a>
       </div>
-    </nav>
-    <div class="zp-side-user">
-      <span class="zp-avatar">临</span>
-      <dl><dt>临海民警01</dt><dd>临海市公安局 · ××派出所</dd></dl>
-      <button class="zp-exit" data-toast="演示：退出登录">退出</button>
-    </div>
+    </nav>
   </aside>
 
   <div class="zp-main">
     <header class="zp-topbar">
-      <nav class="zp-crumb"><span>日常工作</span><span class="sep">/</span><b>录音采集</b></nav>
+      <nav class="zp-crumb"><span>日常工作</span><span class="sep">/</span><span>录音采集</span><span class="sep">/</span><b>开始录音</b></nav>
       <div class="zp-topbar-right">
         <button class="zp-bell" aria-label="未读消息" onclick="location.href='messages.html'">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
           <span class="zp-dot-badge">4</span>
         </button>
         <span class="zp-vline"></span>
-        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<span class="role">民警</span></div>
+        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<button class="zp-exit" data-toast="演示：退出登录">退出</button></div>
       </div>
     </header>
 

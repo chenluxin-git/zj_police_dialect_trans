@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     qc_max_retry: int = 3
     qc_scan_interval: int = 60
 
+    # ---------- 语音转译（工作台）配置 ----------
+    # 上游地址/超时复用 asr_* 三项；trans_asr_mock=True 时按 id 取固定方言句（演示/联调不调上游）
+    trans_asr_mock: bool = False
+    trans_scan_interval: int = 3     # 后台泵扫描间隔（秒）
+    trans_stuck_minutes: int = 20    # processing 卡死自愈阈值（须 > asr_timeout×3 ≈ 15min）
+
     # ---------- 导入/扫盘运行目录（容器内指向 /data 卷，防侧车台账落容器临时层） ----------
     text_import_dir: str = "data/text_imports"
     audio_import_dir: str = "data/audio_imports"

@@ -10,6 +10,8 @@
   + 少量质检未通过（qc_status='failed'，附 qc_logs 原文/转译比对流水，供对比弹窗演示）
 - audio_files：从本地录音派生素材（保证标注译文与音频内容对应）+ annotations
 - tasks：按区县给民警下达录音/标注指标，各市完成率刻意拉开差距
+- transcriptions：工作台语音转译记录（多数 done 其中部分带人工修正 / 少量 failed 可重试 /
+  少量 pending 在途，识别文本取当区朗读语料原文，文件名混用工作台演示词汇）
 
 执行：
     cd server
@@ -17,7 +19,8 @@
     .venv/Scripts/python -m app.utils.demo_data --seed 1234 # 固定随机种子
 
 安全：只删/写 texts / text_assignments / recordings / audio_files / file_assignments /
-annotations / tasks / qc_logs 八张业务表，**不动 users / regions / dialects / police_stations**。
+annotations / tasks / qc_logs / transcriptions 九张业务表，**不动 users / regions /
+dialects / police_stations**。
 """
 from __future__ import annotations
 
@@ -44,6 +47,7 @@ from ..models import (
     Task,
     Text,
     TextAssignment,
+    Transcription,
     User,
 )
 
@@ -105,6 +109,12 @@ _OTHER_PAIRS = {
     for cat in PAIRS_BY_CATEGORY
 }
 FAILED_RATIO = 0.06  # 已质检录音中"未通过"占比（演示红 tag + 对比弹窗）
+# 转译记录文件名词汇（dome 工作台演示稿同源，混用音视频扩展名）
+TRANS_NAMES = [
+    ("rec_0047.webm", "webm"), ("调解录音_0923.wav", "wav"),
+    ("接处警_20260921.mp3", "mp3"), ("走访记录.m4a", "m4a"),
+    ("执法记录_0922.mp4", "mp4"), ("纠纷现场.wav", "wav"),
+]
 
 # ---------------------------------------------------------------- 各市投放强度
 # 刻意拉开差距，好让「分市排行 / 红黑榜」在界面上有内容
@@ -169,7 +179,7 @@ def _spread_time(rng: random.Random, now: datetime) -> datetime:
 def reset_business_data(db) -> None:
     """只清业务表，保留账号与基础数据。"""
     for model in (Annotation, FileAssignment, AudioFile, QCLog, Recording,
-                  TextAssignment, Text, Task):
+                  Transcription, TextAssignment, Text, Task):
         db.query(model).delete()
     db.commit()
 
@@ -177,7 +187,8 @@ def reset_business_data(db) -> None:
 def run(db, rng: random.Random, reset: bool) -> dict:
     now = datetime.now()
     st = {"texts": 0, "recordings": 0, "pending": 0, "failed": 0, "audio_files": 0,
-          "annotations": 0, "tasks": 0, "users_active": 0, "wav": 0}
+          "annotations": 0, "tasks": 0, "users_active": 0, "wav": 0,
+          "trans": 0, "trans_fixed": 0}
 
     if reset:
         reset_business_data(db)
@@ -365,6 +376,48 @@ def run(db, rng: random.Random, reset: bool) -> dict:
                     ))
                     st["tasks"] += 1
 
+    # ---------------- 5) 语音转译（工作台） ----------------
+    # 每区县 2~6 条，随机落在活跃民警名下：~72% done（识别文本取当区朗读语料原文，
+    # 其中约 1/4 带人工修正金标）、~10% failed（可重试演示）、~18% pending（刷新后在途可水化）
+    for city in cities:
+        ratio = CITY_INTENSITY.get(city.code, DEFAULT_INTENSITY)[0]
+        for d in districts_by_city.get(city.code, []):
+            officers = users_by_district.get(d.code, [])
+            pool = texts_by_district.get(d.code, [])
+            if not officers or not pool:
+                continue
+            active_officers = officers[:max(1, int(round(len(officers) * ratio)))]
+            for _ in range(rng.randint(2, 6)):
+                u = rng.choice(active_officers)
+                fname, fext = TRANS_NAMES[rng.randrange(len(TRANS_NAMES))]
+                dur = round(rng.uniform(3.0, 30.0), 2)
+                roll = rng.random()
+                row = Transcription(
+                    user_id=u.id, region_code=d.code, file_name=fname, file_ext=fext,
+                    file_path="", file_size=int(dur * 32000), duration=dur,
+                    status="pending", created_at=_spread_time(rng, now),
+                )
+                db.add(row)
+                db.flush()
+                # 占位 wav 与真实上传同布局 {用户目录}/trans/{id}.wav，播放链路可走通
+                path = os.path.join(storage, _user_folder(u), "trans",
+                                    f"demo_t_{u.id}_{row.id}.wav")
+                _write_wav(path, dur, freq=rng.choice([190, 240, 300]))
+                st["wav"] += 1
+                row.file_path = path
+                if roll < 0.10:
+                    row.status = "failed"
+                    row.error_message = "转写接口超时，可重试"
+                elif roll >= 0.18:
+                    src = rng.choice(pool)
+                    row.status = "done"
+                    row.text_raw = src.content
+                    if rng.random() < 0.25:  # 人工修正金标（译文来自语料配对）
+                        row.text_fixed = translation_of.get(
+                            (d.code, src.content), rng.choice(PAIRS_LIFE)[1])
+                        st["trans_fixed"] += 1
+                st["trans"] += 1
+
     db.commit()
     return st
 
@@ -390,6 +443,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  音频素材    {st['audio_files']:>7} 条")
     print(f"  标注        {st['annotations']:>7} 条")
     print(f"  任务        {st['tasks']:>7} 条")
+    print(f"  转译记录    {st['trans']:>7} 条（人工修正 {st['trans_fixed']}）")
     print(f"  参与民警    {st['users_active']:>7} 人")
     print(f"  生成 WAV    {st['wav']:>7} 个（{settings.audio_storage_path}）")
     print("\n提示：录音/素材均为低幅正弦占位 WAV，试听与导出链路可正常走通。")

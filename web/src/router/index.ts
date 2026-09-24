@@ -53,6 +53,11 @@ const router = createRouter({
         { path: "annotation/work", name: "annotation-work", component: () => import("@/views/AnnotationView.vue"), meta: { group: "日常工作", parent: "录音标注", title: "开始标注" } },
         { path: "annotation/history", name: "annotation-history", component: () => import("@/views/MyAnnotationsView.vue"), meta: { group: "日常工作", parent: "录音标注", title: "历史标注" } },
 
+        // ---------- 语音转译（二级：工作台 / 历史记录） ----------
+        { path: "trans", name: "trans", redirect: { name: "trans-work" }, meta: { group: "日常工作", parent: "语音转译" } },
+        { path: "trans/work", name: "trans-work", component: () => import("@/views/TransWorkView.vue"), meta: { group: "日常工作", parent: "语音转译", title: "工作台" } },
+        { path: "trans/history", name: "trans-history", component: () => import("@/views/TransHistoryView.vue"), meta: { group: "日常工作", parent: "语音转译", title: "历史记录" } },
+
         { path: "messages", name: "messages", component: () => import("@/views/MessagesView.vue"), meta: { group: "消息", title: "我的消息" } },
 
         // ---------- 管理工作：直接项 ----------
@@ -73,6 +78,7 @@ const router = createRouter({
         { path: "admin/records", name: "admin-records", redirect: { name: "admin-records-recording" }, meta: { group: "管理工作", parent: "采集记录", requiresAdmin: true } },
         { path: "admin/records/recording", name: "admin-records-recording", component: () => import("@/views/admin/RecordingsView.vue"), meta: { group: "管理工作", parent: "采集记录", title: "录音记录", requiresAdmin: true } },
         { path: "admin/records/annotation", name: "admin-records-annotation", component: () => import("@/views/admin/AnnotationsView.vue"), meta: { group: "管理工作", parent: "采集记录", title: "标注记录", requiresAdmin: true } },
+        { path: "admin/records/transcription", name: "admin-records-transcription", component: () => import("@/views/admin/TranscriptionsView.vue"), meta: { group: "管理工作", parent: "采集记录", title: "转译记录", requiresAdmin: true } },
 
         // ---------- 人员与任务（二级：人员管理 / 任务管理） ----------
         { path: "admin/users", name: "admin-users", redirect: { name: "admin-users-people" }, meta: { group: "管理工作", parent: "人员与任务", requiresAdmin: true } },

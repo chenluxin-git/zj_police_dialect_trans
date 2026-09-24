@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>语音转译工作台 · 浙江公安方言语料采集平台</title>
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  /* ===== 声波舞台（tailect PC 形态：上·邀请文字 / 底·录音工具条，配色映射 zp token） ===== */
+  .tr-stage{
+    position:relative;cursor:pointer;display:flex;flex-direction:column;overflow:hidden;
+    background:var(--white);border:1.5px dashed var(--line-strong);border-radius:var(--radius-lg);
+    transition:border-color .16s,background .16s,box-shadow .16s;
+  }
+  .tr-stage:hover{border-color:var(--blue-500);background:#FDFEFF}
+  .tr-stage.is-drag{border-color:var(--navy-700);border-style:solid;background:var(--blue-50);box-shadow:0 0 0 4px var(--blue-100)}
+  .tr-stage-main{position:relative;height:132px}
+  /* 微光晕：落在文字区，拖入时增强 */
+  .tr-stage-main::before{
+    content:"";position:absolute;left:50%;top:40%;width:520px;height:150px;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(closest-side,rgba(44,107,176,.10),transparent 70%);
+    opacity:.7;transition:opacity .2s;pointer-events:none;
+  }
+  .tr-stage.is-drag .tr-stage-main::before{opacity:1}
+  /* 邀请文字区 */
+  .tr-stage-center{
+    position:absolute;inset:0;z-index:2;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    text-align:center;padding:0 24px;
+  }
+  .st-title{font-size:15.5px;font-weight:600;color:var(--ink)}
+  .st-title em{font-style:normal;color:var(--navy-700);cursor:pointer}
+  .st-title em:hover{text-decoration:underline;text-underline-offset:3px}
+  .st-sub{font-size:12.5px;color:var(--ink-3)}
+  /* 录音态：邀请文字整组隐藏，红色均衡条占满主区 */
+  .tr-stage.is-recording .tr-stage-center{display:none}
+  .tr-recbars{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:5px}
+  .tr-stage.is-recording .tr-recbars{display:flex}
+  .tr-recbars i{width:3px;border-radius:1.5px;background:rgba(197,48,48,.65);height:14px;animation:tr-recbar 1s ease-in-out infinite alternate}
+  @keyframes tr-recbar{from{transform:scaleY(.22)}to{transform:scaleY(2.4)}}
+  /* 底部工具条：录音控制（左） + 格式说明（右） */
+  .tr-stage-bar{display:flex;align-items:center;gap:12px;padding:7px 16px;border-top:1px solid var(--line)}
+  .tr-rec{display:flex;align-items:center;gap:12px}
+  .tr-rec-btn{
+    width:40px;height:40px;border-radius:50%;cursor:pointer;flex:none;
+    border:1.5px solid var(--navy-700);background:var(--white);color:var(--navy-700);
+    display:grid;place-items:center;
+    transition:border-color .12s,color .12s,background .12s;
+  }
+  .tr-rec-btn:hover{background:var(--blue-50)}
+  .tr-rec-info b{display:block;font-size:13px;font-weight:600}
+  .tr-rec-info span{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
+  .tr-rec-timer{font-variant-numeric:tabular-nums;font-size:17px;font-weight:650;color:var(--danger);display:none}
+  /* 录音态联动：标题红点呼吸、计时显形、描边钮变红 */
+  .tr-rec.is-on .tr-rec-timer{display:block}
+  .tr-rec.is-on .tr-rec-btn{border-color:var(--danger);color:var(--danger);background:var(--danger-bg)}
+  .tr-rec.is-on .tr-rec-info b{color:var(--danger);display:inline-flex;align-items:center;gap:7px}
+  .tr-rec.is-on .tr-rec-info b::before{
+    content:"";width:7px;height:7px;border-radius:50%;flex:none;
+    background:var(--danger);animation:tr-recpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes tr-recpulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .tr-rec-hint-live{display:none}
+  .tr-rec.is-on .tr-rec-hint-live{display:block}
+  .tr-rec.is-on .tr-rec-hint-idle{display:none}
+  .tr-stage-tip{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap}
+  /* ===== 队列表补充 ===== */
+  .tr-run-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--navy-700);margin-right:5px;animation:tr-pulse 1s infinite}
+  @keyframes tr-pulse{50%{opacity:.25}}
+  .tr-eq{display:inline-flex;align-items:flex-end;gap:2px;height:13px}
+  .tr-eq i{width:2.5px;height:8px;background:var(--blue-500);border-radius:1px;animation:tr-eqb 1s ease-in-out infinite}
+  .tr-eq i:nth-child(2){animation-delay:.18s}
+  .tr-eq i:nth-child(3){animation-delay:.36s}
+  @keyframes tr-eqb{0%,100%{height:4px}50%{height:13px}}
+  .tr-f-name{font-size:13px;color:var(--ink);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tr-f-meta{font-size:12px;color:var(--ink-3);margin-top:2px}
+  .tr-r{
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    font-size:13px;color:var(--ink);line-height:1.6;max-width:520px;
+  }
+  .tr-r .zp-tag{vertical-align:1px;margin-left:6px}
+  .tr-fail-hint{font-size:12px;color:var(--danger)}
+  .tr-empty{display:none;padding:72px 20px 64px;text-align:center}
+  .tr-empty.is-show{display:block}
+  .tr-empty .glyph{width:56px;height:40px;margin:0 auto 16px;display:flex;align-items:flex-end;justify-content:center;gap:4px}
+  .tr-empty .glyph i{width:4px;border-radius:2px;background:var(--line-strong);transform-origin:bottom;animation:tr-glyph 1.6s ease-in-out infinite}
+  .tr-empty .glyph i:nth-child(1){height:16px}
+  .tr-empty .glyph i:nth-child(2){height:28px;animation-delay:.2s}
+  .tr-empty .glyph i:nth-child(3){height:36px}
+  .tr-empty .glyph i:nth-child(4){height:22px;animation-delay:.35s}
+  .tr-empty .glyph i:nth-child(5){height:12px}
+  @keyframes tr-glyph{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+  .tr-empty b{display:block;font-size:14.5px;font-weight:600;color:var(--ink)}
+  .tr-empty span{display:block;font-size:12.5px;color:var(--ink-3);margin-top:7px;line-height:1.8}
+</style>
+</head>
+<body data-page="trans-work">
+<div class="zp-app">
+  <aside class="zp-side">
+    <div class="zp-brand">
+      <svg viewBox="0 0 48 56" fill="none" aria-hidden="true">
+        <path d="M24 2 44 8v18c0 14-9 23-20 28C13 49 4 40 4 26V8L24 2z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M24 17l2.5 5.1 5.6.8-4 4 .9 5.6L24 29.9l-5 2.6.9-5.6-4-4 5.6-.8L24 17z" fill="currentColor"/>
+      </svg>
+      <div class="zp-brand-name"><b>浙江公安</b><span>方言语料采集平台</span></div>
+    </div>
+    <nav class="zp-menu">
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">日常工作</div>
+        <a href="home.html" data-page="home">首页</a>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音采集
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="record.html" data-page="record">开始录音</a>
+          <a href="my-recordings.html" data-page="my-recordings">历史录音</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">录音标注
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="annotation.html" data-page="annotation">开始标注</a>
+          <a href="my-annotations.html" data-page="my-annotations">历史标注</a>
+        </div>
+        <button class="zp-menu-group-btn" type="button" aria-expanded="false">语音转译
+          <svg class="zp-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <div class="zp-menu-sub">
+          <a href="trans-work.html" data-page="trans-work">工作台</a>
+          <a href="trans-history.html" data-page="trans-history">历史记录</a>
+        </div>
+      </div>
+      <div class="zp-menu-group">
+        <div class="zp-menu-title">消息</div>
+        <a href="messages.html" data-page="messages">我的消息<span class="zp-dot-badge">4</span></a>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="zp-main">
+    <header class="zp-topbar">
+      <nav class="zp-crumb"><span>日常工作</span><span class="sep">/</span><span>语音转译</span><span class="sep">/</span><b>工作台</b></nav>
+      <div class="zp-topbar-right">
+        <button class="zp-bell" aria-label="未读消息" onclick="location.href='messages.html'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          <span class="zp-dot-badge">4</span>
+        </button>
+        <span class="zp-vline"></span>
+        <div class="zp-topbar-user"><span class="zp-avatar" style="width:30px;height:30px;font-size:12px">临</span>临海民警01<button class="zp-exit" data-toast="演示：退出登录">退出</button></div>
+      </div>
+    </header>
+
+    <main class="zp-content">
+      <div class="zp-page-head">
+        <h1>语音转译工作台</h1>
+        <span class="sub">说一段浙江话，或上传音频 / 视频，自动转写为文字</span>
+        <div class="zp-head-actions">
+          <a class="zp-btn zp-btn--ghost zp-btn--sm" href="trans-history.html">历史记录 →</a>
+        </div>
+      </div>
+
+      <div class="zp-alert zp-alert--info zp-mb-16">
+        <span>演示页：识别流程与交互为模拟（不调用真实转写接口），正式版将接入方言转译服务。</span>
+      </div>
+
+      <!-- 声波舞台（tailect PC 形态）：上·邀请文字 / 底·录音工具条 -->
+      <section class="tr-stage zp-mb-16" id="stage" aria-label="拖入音频或视频文件，或点击选择">
+        <div class="tr-stage-main">
+          <div class="tr-recbars" id="recbars" aria-hidden="true"></div>
+          <div class="tr-stage-center">
+            <div class="st-title">将音频 / 视频文件拖到此处，或 <em>点击选择</em></div>
+            <div class="st-sub">可多选，识别一条出一条</div>
+          </div>
+        </div>
+        <div class="tr-stage-bar">
+          <div class="tr-rec" id="recCard">
+            <button class="tr-rec-btn" id="recBtn" aria-label="麦克风录音">
+              <svg id="recIconIdle" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 12a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12h-2z"/></svg>
+              <svg id="recIconStop" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            </button>
+            <div class="tr-rec-info">
+              <b>麦克风录音</b>
+              <span class="tr-rec-hint-idle">点击开始 · 再点停止入队</span>
+              <span class="tr-rec-hint-live">再次点击结束并加入队列</span>
+            </div>
+            <span class="tr-rec-timer" id="recTimer">0:00</span>
+          </div>
+          <div class="tr-stage-tip">音频 wav / mp3 / m4a / webm · 单个 ≤ 50MB　视频 mp4 / mov / webm · 自动提取音轨</div>
+        </div>
+      </section>
+
+      <!-- 本次识别 -->
+      <div class="zp-card">
+        <div class="zp-card-head">
+          <h2>本次识别</h2>
+          <span class="zp-card-sub">串行识别 · 同一时刻仅一条在途</span>
+          <div class="zp-head-actions">
+            <span class="zp-card-sub" id="queueStat"></span>
+            <button class="zp-btn zp-btn--ghost zp-btn--sm" id="clearBtn">清除已完成</button>
+          </div>
+        </div>
+        <div class="zp-card-body zp-card-body--flush">
+          <div class="zp-table-wrap">
+            <table class="zp-table">
+              <thead>
+                <tr>
+                  <th style="width:92px">状态</th>
+                  <th style="width:240px">文件</th>
+                  <th style="width:72px">时长</th>
+                  <th>识别结果</th>
+                  <th style="width:190px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="queueBody"></tbody>
+            </table>
+          </div>
+          <div class="tr-empty is-show" id="queueEmpty">
+            <div class="glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <b>还没有识别任务</b>
+            <span>把音频 / 视频文件拖到上方，或点击「麦克风录音」说一段浙江话；<br>识别一条，出一条结果。</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- 修正弹窗 -->
+<div class="zp-dialog-mask" id="fixDialog">
+  <div class="zp-dialog">
+    <div class="zp-dialog-head"><h3>修正识别结果</h3><button class="zp-x" data-close aria-label="关闭">×</button></div>
+    <div class="zp-dialog-body">
+      <div class="zp-field">
+        <label>原文件</label>
+        <p class="zp-text-3" id="fixFile">—</p>
+      </div>
+      <div class="zp-field">
+        <label>识别结果（可修正）<span class="req">*</span></label>
+        <textarea class="zp-textarea" id="fixText" rows="5" placeholder="修正错别字与标点"></textarea>
+        <p class="zp-hint">保存后该条会打上「已修正」标记；改回原文等于撤销修正</p>
+      </div>
+    </div>
+    <div class="zp-dialog-foot">
+      <button class="zp-btn zp-btn--ghost" data-close>取消</button>
+      <button class="zp-btn zp-btn--primary" id="fixSave">保存修正</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/demo.js"></script>
+<script>
+/* ===== 工作台演示逻辑（模拟串行识别队列，无真实接口） ===== */
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage'), body = $('queueBody'), empty = $('queueEmpty');
+  var items = [], seq = 0, running = false, fixId = null;
+  var recTimer = null, recSecs = 0;
+
+  var MOCK_TEXTS = [
+    '侬好，我是社区民警，麻烦开开门头。',
+    '莫慌莫慌，慢慢叫讲，到底啥个事体？',
+    '钞票转出去了就麻烦了，先把手机关机。',
+    '落雨了，衣裳好收收了。',
+    '今朝天气蛮好，一道去外面走走伐。',
+    '阿拉这个地方老早叫法不一样的。',
+    '你莫跑，站牢！我是警察。',
+    '隔壁阿婆人蛮好的，经常帮阿拉看门头。'
+  ];
+  var FAKE_NAMES = ['调解录音_0923.wav', '接处警_20260921.mp3', '走访记录.m4a', '纠纷现场.wav', '执法记录_0922.mp4'];
+
+  /* 与 demo.js 同款轻提示（该文件先加载，这里直接复用 #zpToast） */
+  function toast(msg) {
+    var el = document.getElementById('zpToast');
+    if (!el) { el = document.createElement('div'); el.id = 'zpToast'; el.className = 'zp-toast'; document.body.appendChild(el); }
+    el.textContent = msg; el.classList.add('is-show');
+    clearTimeout(toast._t); toast._t = setTimeout(function () { el.classList.remove('is-show'); }, 1800);
+  }
+  function fmtSize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function fmtDur(s) { return Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0'); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* 舞台均衡器条：30 根随机高度/相位（录音态显形） */
+  (function () {
+    var bars = $('recbars');
+    for (var i = 0; i < 30; i++) {
+      var b = document.createElement('i');
+      b.style.height = (6 + Math.random() * 22) + 'px';
+      b.style.animationDuration = (0.5 + Math.random() * 0.7) + 's';
+      b.style.animationDelay = (Math.random() * 0.8) + 's';
+      bars.appendChild(b);
+    }
+  })();
+
+  function statusTag(it) {
+    if (it.status === 'wait') return '<span class="zp-tag zp-tag--gray">排队中</span>';
+    if (it.status === 'run') return '<span class="zp-tag zp-tag--blue"><span class="tr-run-dot"></span>识别中</span>';
+    if (it.status === 'fail') return '<span class="zp-tag zp-tag--danger">失败</span>';
+    return '<span class="zp-tag zp-tag--green">完成</span>';
+  }
+  function resultCell(it) {
+    if (it.status === 'wait') return '<span class="zp-text-3">—</span>';
+    if (it.status === 'run') return '<span class="tr-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>';
+    if (it.status === 'fail') return '<span class="tr-fail-hint">识别失败：转写接口超时，可重试</span>';
+    return '<div class="tr-r">' + esc(it.text) + (it.fixed ? ' <span class="zp-tag zp-tag--gold">已修正</span>' : '') + '</div>';
+  }
+  function actsCell(it) {
+    var b = function (act, label, danger) {
+      return '<button class="zp-btn zp-btn--text' + (danger ? ' is-danger' : '') + '" data-act="' + act + '" data-id="' + it.id + '">' + label + '</button>';
+    };
+    var out = '';
+    if (it.status === 'done') out += b('play', '播放');
+    out += b('fix', '修正');
+    if (it.status === 'done') out += b('copy', '复制');
+    if (it.status === 'fail') out += b('retry', '重试');
+    out += b('remove', '移除', true);
+    return out;
+  }
+  function render() {
+    body.innerHTML = items.map(function (it) {
+      return '<tr>'
+        + '<td>' + statusTag(it) + '</td>'
+        + '<td><div class="tr-f-name" title="' + esc(it.name) + '">' + esc(it.name) + '</div><div class="tr-f-meta">' + fmtSize(it.size) + ' · ' + esc(it.fmt) + '</div></td>'
+        + '<td class="num">' + fmtDur(it.dur) + '</td>'
+        + '<td>' + resultCell(it) + '</td>'
+        + '<td>' + actsCell(it) + '</td>'
+        + '</tr>';
+    }).join('');
+    empty.classList.toggle('is-show', !items.length);
+    var done = items.filter(function (i) { return i.status === 'done'; }).length;
+    var fail = items.filter(function (i) { return i.status === 'fail'; }).length;
+    $('queueStat').textContent = items.length ? '共 ' + items.length + ' 条 · 完成 ' + done + ' · 失败 ' + fail : '';
+  }
+
+  /* 串行泵：无在途时取一条 排队→识别中→（1.6~2.8s）完成/失败 */
+  function pump() {
+    if (running) return;
+    var next = items.find(function (i) { return i.status === 'wait'; });
+    if (!next) return;
+    running = true;
+    next.status = 'run';
+    render();
+    setTimeout(function () {
+      running = false;
+      if (Math.random() < 0.12) { next.status = 'fail'; next.text = ''; }
+      else { next.status = 'done'; next.text = MOCK_TEXTS[Math.floor(Math.random() * MOCK_TEXTS.length)]; next.raw = next.text; }
+      render();
+      pump();
+    }, 1600 + Math.random() * 1200);
+  }
+
+  function enqueue(name, size, fmt, dur) {
+    items.unshift({ id: ++seq, name: name, size: size || 240000 + Math.floor(Math.random() * 3e6), fmt: fmt || 'wav', dur: dur == null ? 5 + Math.floor(Math.random() * 50) : dur, status: 'wait', text: '', fixed: false });
+    render();
+    pump();
+  }
+
+  /* 文件入口：点击舞台 → 模拟选中 1~2 个文件；拖拽 → 读取真实文件名 */
+  stage.addEventListener('click', function (e) {
+    if (e.target.closest('.tr-stage-bar')) return;   // 工具条里的录音钮不触发选文件
+    var n = 1 + Math.floor(Math.random() * 2);
+    for (var i = 0; i < n; i++) {
+      var name = FAKE_NAMES[Math.floor(Math.random() * FAKE_NAMES.length)];
+      enqueue(name, undefined, name.split('.').pop());
+    }
+  });
+  ['dragover', 'dragenter'].forEach(function (t) {
+    stage.addEventListener(t, function (e) { e.preventDefault(); stage.classList.add('is-drag'); });
+  });
+  ['dragleave', 'drop'].forEach(function (t) {
+    stage.addEventListener(t, function (e) { e.preventDefault(); stage.classList.remove('is-drag'); });
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); });
+  stage.addEventListener('drop', function (e) {
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) { enqueue(FAKE_NAMES[0], undefined, 'wav'); return; }
+    Array.prototype.forEach.call(files, function (f) {
+      enqueue(f.name, f.size, (f.name.split('.').pop() || 'wav').toLowerCase());
+    });
+  });
+
+  /* 录音：点击开始（舞台切录音态 + 工具条切红）→ 再点停止入队 */
+  $('recBtn').addEventListener('click', function () {
+    var live = stage.classList.toggle('is-recording');
+    $('recCard').classList.toggle('is-on', live);
+    $('recIconIdle').style.display = live ? 'none' : '';
+    $('recIconStop').style.display = live ? '' : 'none';
+    if (live) {
+      recSecs = 0; $('recTimer').textContent = '0:00';
+      recTimer = setInterval(function () { recSecs++; $('recTimer').textContent = fmtDur(recSecs); }, 1000);
+    } else {
+      clearInterval(recTimer);
+      var dur = Math.max(2, recSecs);
+      enqueue('rec_' + fmtDur(dur).replace(':', '') + '.webm', undefined, 'webm', dur);
+      $('recTimer').textContent = '0:00';
+    }
+  });
+
+  /* 行内操作 */
+  body.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    var it = items.find(function (i) { return i.id === +btn.dataset.id; });
+    if (!it) return;
+    var act = btn.dataset.act;
+    if (act === 'play') { toast('演示：播放「' + it.name + '」'); return; }
+    if (act === 'fix') {
+      fixId = it.id;
+      $('fixFile').textContent = it.name + ' · ' + fmtDur(it.dur);
+      $('fixText').value = it.text || '';
+      $('fixDialog').classList.add('is-open');
+      return;
+    }
+    if (act === 'copy') {
+      if (navigator.clipboard) navigator.clipboard.writeText(it.text).then(function () { toast('已复制到剪贴板'); });
+      else toast('已复制（演示）');
+      return;
+    }
+    if (act === 'retry') { it.status = 'wait'; it.text = ''; render(); pump(); return; }
+    if (act === 'remove') { items = items.filter(function (i) { return i !== it; }); render(); }
+  });
+  $('fixSave').addEventListener('click', function () {
+    var it = items.find(function (i) { return i.id === fixId; });
+    if (it) {
+      var v = $('fixText').value.trim();
+      it.fixed = v !== '' && v !== it.raw;
+      it.text = v || it.text;
+      render();
+      toast('修正已保存');
+    }
+    $('fixDialog').classList.remove('is-open');
+  });
+
+  $('clearBtn').addEventListener('click', function () {
+    items = items.filter(function (i) { return i.status !== 'done'; });
+    render();
+    toast('已清除完成项');
+  });
+})();
+</script>
+</body>
+</html>

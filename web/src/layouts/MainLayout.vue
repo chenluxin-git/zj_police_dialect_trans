@@ -56,6 +56,13 @@ const MENU: MenuSection[] = [
           { label: "历史标注", to: "/annotation/history" },
         ],
       },
+      {
+        label: "语音转译",
+        children: [
+          { label: "工作台", to: "/trans/work" },
+          { label: "历史记录", to: "/trans/history" },
+        ],
+      },
     ],
   },
   {
@@ -86,6 +93,7 @@ const MENU: MenuSection[] = [
         children: [
           { label: "录音记录", to: "/admin/records/recording" },
           { label: "标注记录", to: "/admin/records/annotation" },
+          { label: "转译记录", to: "/admin/records/transcription" },
         ],
       },
       {

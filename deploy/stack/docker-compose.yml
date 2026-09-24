@@ -1,0 +1,102 @@
+# 整栈独立部署编排（无宝塔/无主机 nginx 的裸机器）
+# （scripts/export-stack-package.sh 会把本文件原样放进交付包，服务器上就叫 docker-compose.yml）
+#
+# 与 deploy/record/docker-compose.yml（宝塔子路径形态）的区别：
+# 1. 多一个 web 服务——zjpdt-web 镜像内 nginx 直接服务前端(/) + 反代 /api/ → backend:8000，
+#    宿主机零依赖：不需要装 nginx/宝塔，只需要 docker
+# 2. 对外只发布 web 的 80/443（HTTP_PORT/HTTPS_PORT 可在包根 .env 覆盖）；
+#    backend 只在 compose 网内可见，mysql 一律不发布端口
+# 3. HTTPS 用自签证书（麦克风录音 MediaRecorder 要求安全上下文）：
+#    install.sh 自动生成到 ./certs/，换成正式证书 = 覆盖文件后 docker compose up -d
+# 4. 密钥单点/TZ/restart always/日志 50m×3/顶层 name 锁卷名，与 record 形态同一套加固
+#
+# 所有 docker compose 命令必须在包根目录执行（env_file/logs/certs 相对路径以本文件为基准解析）
+name: zjpdt-stack
+
+services:
+  backend:
+    image: zjpdt-backend:latest        # 无 build:——服务器离线，只 docker load 不构建
+    container_name: zjpdt-backend
+    env_file: ./server/.env.docker
+    environment:
+      # :? 无默认值——包根 .env 没填对应键，compose 直接拒绝启动，把"密钥必改"变成机制约束
+      - "SECRET_KEY=${SECRET_KEY:?请在包根 .env 设置（openssl rand -hex 32）}"
+      - "DATABASE_URL=mysql+pymysql://zjpdt:${MYSQL_PASSWORD:?请在包根 .env 设置（openssl rand -hex 16）}@mysql:3306/zjpdt?charset=utf8mb4"
+      # ASR 质检上游（契约 POST {base}/asr?diarization=false）；留空 = 质检直通 passed
+      - "ASR_UPSTREAM_BASE=${ASR_UPSTREAM_BASE:-}"
+      # 整栈形态前端在根路径 /（web 容器同源反代 /api/）；认证回调 302 依赖它
+      - "FRONTEND_BASE=/"
+      - "TZ=Asia/Shanghai"
+    volumes:
+      - app-data:/data                 # audio_storage / exports / imports 全落卷
+      - ./logs/backend:/app/logs       # 应用日志外挂
+    expose:
+      - "8000"                         # 仅 compose 网内可见，由 web 反代对外
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      mysql:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: always
+
+  web:
+    image: zjpdt-web:latest            # 多阶段构建（node24 打 dist + nginx:alpine 托管），离线机只 load
+    container_name: zjpdt-web
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"       # 对外唯一入口；云安全组/防火墙需放行这两个端口
+    volumes:
+      - ./certs:/etc/nginx/certs:ro    # 自签或正式证书（cert.pem/key.pem）
+      - ./logs/nginx:/var/log/nginx    # 访问日志外挂（结构化 zhijing 格式）
+      - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro   # 上架版站点配置（含安全头/200m 上传/结构化日志）
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: always
+
+  mysql:
+    image: mysql:8.0
+    container_name: zjpdt-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    environment:
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?请在包根 .env 设置（openssl rand -hex 16）}"
+      - "MYSQL_DATABASE=zjpdt"
+      - "MYSQL_USER=zjpdt"
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD:?请在包根 .env 设置}"
+      - "TZ=Asia/Shanghai"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    # 永不发布端口：备份走 docker compose exec mysqldump（密码在容器环境里，宿主机不落明文）
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:?}"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    restart: always
+
+volumes:
+  app-data:
+  mysql-data:

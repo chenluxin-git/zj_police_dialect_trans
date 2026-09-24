@@ -4,6 +4,13 @@
 > （内网不能 `docker pull`/`npm install`，不能 `--build`，必须走离线包）。
 > 出问题看 [`../docs/diagnose-playbook.md`](../docs/diagnose-playbook.md)（现象 → 查哪个字段）。
 
+交付包三形态（构建机出包，互不通用）：
+- **整栈独立**（无宝塔裸机，https://IP/ 自签证书）：`scripts/export-stack-package.sh`，手册 `deploy/stack/DEPLOY.md`
+- **宝塔子路径**（挂已有站点 /record/）：`scripts/export-record-package.sh`，手册 `deploy/record/DEPLOY.md`
+- **legacy 离线整栈**（旧形式，未再演进）：`scripts/export-offline.sh`，手册 `docs/offline-deploy.md`
+
+本页其余内容是**本机开发调试**用（根 compose 起停 + 冒烟清单），不是交付流程。
+
 ## 一次性准备
 
 ```bash

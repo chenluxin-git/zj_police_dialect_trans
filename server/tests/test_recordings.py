@@ -90,6 +90,24 @@ def test_convert_to_wav_contract(tmp_path, webm_bytes):
     assert isinstance(_ffmpeg_sem, asyncio.Semaphore)  # 并发限流信号量存在（限 2 由实现保证）
 
 
+@needs_ffmpeg
+def test_convert_to_wav_moov_at_end_mp4(tmp_path):
+    """回归：moov box 在文件尾的 mp4（手机录像默认形态，不用 +faststart）。
+    旧实现 stdin 直灌 ffmpeg：管道不可 seek 找不到 moov → 退出码 0 但输出空 wav
+    → ffprobe 'N/A' → float('N/A') ValueError（上传 500）。现走可 seek 临时实文件。"""
+    from app.api.recordings import convert_to_wav
+    src = tmp_path / "phone.mp4"
+    subprocess.run(
+        [FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono",
+         "-t", "1", "-c:a", "aac", "-f", "mp4", str(src)],
+        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    dst = tmp_path / "out.wav"
+    dur = convert_to_wav(src.read_bytes(), str(dst))
+    assert dur == pytest.approx(1.0, abs=0.3)          # 旧实现这里 float('N/A') 崩
+    assert dst.stat().st_size > 16000                  # 非空 wav（旧实现仅 78 字节头）
+
+
 # ---------- 核心用例（计划 T8 Step 1） ----------
 
 @needs_ffmpeg

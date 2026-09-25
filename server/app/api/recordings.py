@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -44,17 +45,35 @@ def _ffprobe_duration(path: str) -> float:
     )
     if r.returncode != 0:
         raise RuntimeError(f"ffprobe 取时长失败: {r.stderr.strip()[:200]}")
-    return float(r.stdout.strip())
+    out = r.stdout.strip()
+    if not out or out == "N/A":
+        # ffmpeg 对无音轨/解不出内容的输入可退出码 0 却只写出空 wav（仅头），
+        # 这里必须挡住 'N/A'（float('N/A') 是 ValueError，且空 wav 落盘无意义）
+        raise RuntimeError("ffprobe 未取到时长（输出可能为空，请确认文件含有效音轨）")
+    return float(out)
 
 
 def convert_to_wav(src_bytes: bytes, dst_path: str) -> float:
-    """原始音频字节 → 16k 单声道 pcm_s16le WAV（stdin 直灌 ffmpeg，不落原始临时文件），返回时长秒"""
-    cmd = ["ffmpeg", "-y", "-i", "-", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", dst_path]
-    r = subprocess.run(cmd, input=src_bytes, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    if r.returncode != 0:
-        err = r.stderr.decode("utf-8", errors="ignore").strip()
-        raise RuntimeError(f"ffmpeg 转换失败: {err[:200]}")
-    return _ffprobe_duration(dst_path)
+    """原始音视频字节 → 16k 单声道 pcm_s16le WAV，返回时长秒。
+    必须落一个可 seek 的临时实文件再喂 ffmpeg：mp4/mov 的 moov box 默认在文件尾，
+    stdin 管道不可 seek，ffmpeg 回头找不到 moov 会静默输出空 wav 且退出码仍为 0
+    （手机录像默认形态，曾致上传 500「音频转换失败」）"""
+    fd, src_path = tempfile.mkstemp(suffix=".upload")
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(src_bytes)
+        cmd = ["ffmpeg", "-y", "-i", src_path, "-ac", "1", "-ar", "16000",
+               "-c:a", "pcm_s16le", dst_path]
+        r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if r.returncode != 0:
+            err = r.stderr.decode("utf-8", errors="ignore").strip()
+            raise RuntimeError(f"ffmpeg 转换失败: {err[:200]}")
+        return _ffprobe_duration(dst_path)
+    finally:
+        try:
+            os.remove(src_path)
+        except OSError:
+            pass
 
 
 def _user_folder(user: User) -> str:

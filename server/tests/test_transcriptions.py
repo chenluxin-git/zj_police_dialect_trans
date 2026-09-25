@@ -121,7 +121,7 @@ def test_upload_rejects_oversize(client, db, auth_header, monkeypatch):
     monkeypatch.setattr(api_trans, "TRANS_MAX_BYTES", 8)
     r = upload(client, auth_header, "大文件.wav", b"0123456789")
     assert r.status_code == 400
-    assert "50MB" in r.json()["detail"]
+    assert "100MB" in r.json()["detail"]
     assert db.query(Transcription).count() == 0
 
 

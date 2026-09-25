@@ -33,7 +33,7 @@ from ..services import audit
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/transcriptions", tags=["语音转译"])
 
-TRANS_MAX_BYTES = 50 * 1024 * 1024    # 单文件 50MB（nginx client_max_body_size 100m 内）
+TRANS_MAX_BYTES = 100 * 1024 * 1024   # 单文件 100MB（视频含轨体积大；nginx 各形态 client_max ≥200m）
 TRANS_MAX_DURATION = 900.0            # 15 分钟
 TRANS_ALLOWED_EXTS = {"wav", "mp3", "m4a", "webm", "mp4", "mov"}
 TRANS_MAX_POLL_IDS = 50               # 工作台 ids 批量轮询上限
@@ -75,7 +75,7 @@ async def create_transcription(
     if not src:
         raise HTTPException(status_code=400, detail="文件为空")
     if len(src) > TRANS_MAX_BYTES:
-        raise HTTPException(status_code=400, detail="文件超过 50MB 上限")
+        raise HTTPException(status_code=400, detail="文件超过 100MB 上限")
 
     row = Transcription(user_id=current_user.id,
                         region_code=current_user.region_code or "",

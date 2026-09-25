@@ -217,3 +217,11 @@ defineExpose({ reload: load, ownRegionName })
     </select>
   </div>
 </template>
+
+<style scoped>
+/* 筛选栏全局 .zp-filter .zp-select 有 min-width:150px，会把本组件两个级联下拉
+  （flex:1 分宽）撑出定宽容器横向溢出，压到相邻筛选项；级联对豁免该最小宽 */
+select.zp-select {
+  min-width: 0;
+}
+</style>

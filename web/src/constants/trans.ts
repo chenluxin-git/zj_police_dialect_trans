@@ -57,7 +57,7 @@ export const TRANS_EXT_OPTIONS = [
 export const TRANS_POLL_INTERVAL = 3000
 
 /** 上传大小上限（MB，与后端 TRANS_MAX_BYTES 一致，前端预检先行提示） */
-export const TRANS_MAX_MB = 50
+export const TRANS_MAX_MB = 100
 
 /** 音频时长上限（分钟，与后端 TRANS_MAX_DURATION 一致） */
 export const TRANS_MAX_MINUTES = 15

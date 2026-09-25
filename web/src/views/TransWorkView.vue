@@ -6,11 +6,14 @@
  * - 与 dome 的两处有意偏差：①「修正」仅 done 行显示（dome 全行显示是稿瑕疵）
  *   ②真实上传非瞬时，增加「上传中」本地灰标；移除/清除已完成=本地隐藏，删库入口在历史页
  * - 刷新恢复：onMounted 用 ?active=1 水化在途队列，轮询继续接管
+ * - 播放对齐 tailect PC：音频 = 结果格行内播放器（本地 File 即时播）；
+ *   视频 = 行下方插入本地视频对比面板（原生 video + 转写文字，服务端只存转码 WAV）；
+ *   识别结果两行截断，点击展开/收起
  */
-import { computed, onMounted, onUnmounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref, watch } from "vue"
 import { ElMessage } from "element-plus"
 import TransFixDialog from "@/components/TransFixDialog.vue"
-import { useBlobPlayer } from "@/composables/useBlobDownload"
+import TransRowPlayer from "@/components/TransRowPlayer.vue"
 import { usePollingJob } from "@/composables/usePollingJob"
 import {
   fetchTranscriptionBlob,
@@ -38,6 +41,7 @@ interface QueueRow {
   status: RowStatus
   item: TranscriptionItem | null // 上传成功后挂服务行
   error: string // 本地上传失败原因（服务行失败读 item.error_message）
+  file?: File | Blob // 本地原始文件（会话内行内/面板播放用；done 行不被水化，始终在内存）
 }
 
 let keySeq = 0
@@ -94,7 +98,7 @@ function enqueueFile(file: File | Blob, name: string, size: number) {
   }
   const row: QueueRow = {
     key: `local-${++keySeq}`, name, ext, size, dur: 0,
-    status: "uploading", item: null, error: "",
+    status: "uploading", item: null, error: "", file,
   }
   items.value.unshift(row)
   uploadQueue.push({ row, file })
@@ -169,12 +173,60 @@ async function hydrate() {
 }
 
 // ---------- 行内操作 ----------
-const audio = useBlobPlayer()
+// 识别结果点击展开/收起（tailect .r-text.full 同款）
+const expanded = ref(new Set<string>())
+function toggleExpand(key: string) {
+  if (expanded.value.has(key)) expanded.value.delete(key)
+  else expanded.value.add(key)
+}
 
-async function play(row: QueueRow) {
+// 行内播放（tailect PC 对齐）：音频 = 结果格行内播放器；视频 = 行下本地视频对比面板；
+// 单互斥槽（音频/视频共用），播放钮变「收起播放」
+interface PlaySlot {
+  key: string
+  kind: "audio" | "video"
+}
+const activeSlot = ref<PlaySlot | null>(null)
+const videoUrl = ref("")
+
+function isVideoRow(row: QueueRow) {
+  // 有本地文件按 MIME 判（麦克风录音是 audio/webm，不会误入视频面板）；
+  // 无文件（水化行，不会是 done）按扩展名兜底
+  return row.file ? row.file.type.indexOf("video/") === 0 : row.ext === "mp4" || row.ext === "mov"
+}
+function togglePlay(row: QueueRow) {
   if (!row.item) return
-  const blob = await fetchTranscriptionBlob(row.item.file_url)
-  audio.play(blob)
+  const kind: "audio" | "video" = isVideoRow(row) ? "video" : "audio"
+  if (activeSlot.value && activeSlot.value.key === row.key && activeSlot.value.kind === kind) {
+    activeSlot.value = null
+    return
+  }
+  activeSlot.value = { key: row.key, kind }
+}
+function loadRowBlob(row: QueueRow): Blob | Promise<Blob> {
+  if (row.file && !isVideoRow(row)) return row.file // 本地音频即时播
+  return fetchTranscriptionBlob((row.item as TranscriptionItem).file_url)
+}
+function releaseVideoUrl() {
+  if (videoUrl.value) {
+    URL.revokeObjectURL(videoUrl.value)
+    videoUrl.value = ""
+  }
+}
+// 槽切换时换视频 objectURL（pre-flush：先于面板行渲染就绪）
+watch(activeSlot, () => {
+  releaseVideoUrl()
+  const slot = activeSlot.value
+  if (slot && slot.kind === "video") {
+    const row = items.value.find((r) => r.key === slot.key)
+    if (row && row.file) videoUrl.value = URL.createObjectURL(row.file)
+    else activeSlot.value = null // 视频只有会话内本地文件可播，兜底收起
+  }
+})
+/** 行消失（移除/清除已完成）时收起播放槽 */
+function clampActiveSlot() {
+  const slot = activeSlot.value
+  if (slot && !items.value.some((r) => r.key === slot.key)) activeSlot.value = null
 }
 
 const fixVisible = ref(false)
@@ -218,9 +270,11 @@ async function retry(row: QueueRow) {
 
 function removeRow(row: QueueRow) {
   items.value = items.value.filter((r) => r.key !== row.key) // 本地隐藏，历史页仍在
+  clampActiveSlot()
 }
 function clearDone() {
   items.value = items.value.filter((r) => r.status !== "done")
+  clampActiveSlot()
   ElMessage.success("已清除完成项")
 }
 
@@ -346,7 +400,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("dragover", preventWindowDrop)
   window.removeEventListener("drop", preventWindowDrop)
-  audio.stop()
+  releaseVideoUrl()
   if (recTimer) clearInterval(recTimer)
   if (stream) stream.getTracks().forEach((t) => t.stop())
 })
@@ -438,36 +492,69 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in items" :key="row.key">
-              <td>
-                <span class="zp-tag" :class="statusClass(row.status)">
-                  <span v-if="row.status === 'processing'" class="tr-run-dot"></span>{{ statusLabel(row.status) }}
-                </span>
-              </td>
-              <td>
-                <div class="tr-f-name" :title="row.name">{{ row.name }}</div>
-                <div class="tr-f-meta">{{ fmtSize(row.size) }} · {{ row.ext }}</div>
-              </td>
-              <td class="num">{{ row.dur > 0 ? fmtDur(row.dur) : "—" }}</td>
-              <td>
-                <span v-if="row.status === 'uploading' || row.status === 'pending'" class="zp-text-3">—</span>
-                <span v-else-if="row.status === 'processing'" class="tr-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-                <span v-else-if="row.status === 'failed'" class="tr-fail-hint">{{ failHint(row) }}</span>
-                <div v-else-if="row.item" class="tr-r">
-                  {{ displayText(row.item) }}
-                  <span v-if="row.item.corrected" class="zp-tag zp-tag--gold">已修正</span>
-                </div>
-              </td>
-              <td>
-                <template v-if="row.status === 'done' && row.item">
-                  <button class="zp-btn zp-btn--text" type="button" @click="play(row)">播放</button>
-                  <button class="zp-btn zp-btn--text" type="button" @click="openFix(row)">修正</button>
-                  <button class="zp-btn zp-btn--text" type="button" @click="copyResult(row)">复制</button>
-                </template>
-                <button v-if="row.status === 'failed' && row.item" class="zp-btn zp-btn--text" type="button" @click="retry(row)">重试</button>
-                <button class="zp-btn zp-btn--text is-danger" type="button" @click="removeRow(row)">移除</button>
-              </td>
-            </tr>
+            <template v-for="row in items" :key="row.key">
+              <tr>
+                <td>
+                  <span class="zp-tag" :class="statusClass(row.status)">
+                    <span v-if="row.status === 'processing'" class="tr-run-dot"></span>{{ statusLabel(row.status) }}
+                  </span>
+                </td>
+                <td>
+                  <div class="tr-f-name" :title="row.name">{{ row.name }}</div>
+                  <div class="tr-f-meta">{{ fmtSize(row.size) }} · {{ row.ext }}</div>
+                </td>
+                <td class="num">{{ row.dur > 0 ? fmtDur(row.dur) : "—" }}</td>
+                <td>
+                  <span v-if="row.status === 'uploading' || row.status === 'pending'" class="zp-text-3">—</span>
+                  <span v-else-if="row.status === 'processing'" class="tr-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span v-else-if="row.status === 'failed'" class="tr-fail-hint">{{ failHint(row) }}</span>
+                  <div
+                    v-else-if="row.item"
+                    class="tr-r"
+                    :class="{ 'is-full': expanded.has(row.key) }"
+                    title="点击展开/收起"
+                    @click="toggleExpand(row.key)"
+                  >
+                    {{ displayText(row.item) }}
+                    <span v-if="row.item.corrected" class="zp-tag zp-tag--gold">已修正</span>
+                  </div>
+                  <TransRowPlayer
+                    v-if="row.status === 'done' && row.item && activeSlot && activeSlot.key === row.key && activeSlot.kind === 'audio'"
+                    :load="() => loadRowBlob(row)"
+                    @closed="activeSlot = null"
+                  />
+                </td>
+                <td>
+                  <template v-if="row.status === 'done' && row.item">
+                    <button class="zp-btn zp-btn--text" type="button" @click="togglePlay(row)">
+                      {{ activeSlot && activeSlot.key === row.key ? "收起播放" : "播放" }}
+                    </button>
+                    <button class="zp-btn zp-btn--text" type="button" @click="openFix(row)">修正</button>
+                    <button class="zp-btn zp-btn--text" type="button" @click="copyResult(row)">复制</button>
+                  </template>
+                  <button v-if="row.status === 'failed' && row.item" class="zp-btn zp-btn--text" type="button" @click="retry(row)">重试</button>
+                  <button class="zp-btn zp-btn--text is-danger" type="button" @click="removeRow(row)">移除</button>
+                </td>
+              </tr>
+              <!-- 视频对比面板（tailect cmpPanel）：行下方插入，原生 video 播本地文件 + 转写文字 -->
+              <tr
+                v-if="activeSlot && activeSlot.key === row.key && activeSlot.kind === 'video'"
+                class="tr-vcmp"
+              >
+                <td colspan="5">
+                  <div class="tr-vcmp-inner">
+                    <div class="tr-vcmp-video">
+                      <video class="tr-vcmp-player" controls preload="metadata" :src="videoUrl"></video>
+                      <div class="tr-vcmp-note">本地面板播放原视频 · 服务端仅保留提取的音轨</div>
+                    </div>
+                    <div class="tr-vcmp-text">
+                      <div class="tr-vcmp-lab">转写文字 · 边看边校对</div>
+                      <div class="tr-vcmp-txt">{{ row.item ? displayText(row.item) || "（无文字）" : "" }}</div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -743,6 +830,10 @@ onUnmounted(() => {
   color: var(--ink);
   line-height: 1.6;
   max-width: 520px;
+  cursor: pointer;
+}
+.tr-r.is-full {
+  -webkit-line-clamp: unset;
 }
 .tr-r .zp-tag {
   vertical-align: 1px;
@@ -751,6 +842,60 @@ onUnmounted(() => {
 .tr-fail-hint {
   font-size: 12px;
   color: var(--danger);
+}
+/* ===== 视频对比面板（tailect cmpPanel 移植） ===== */
+.tr-vcmp > td {
+  padding: 0;
+  background: #fafcfd;
+  border-top: 1px dashed var(--line);
+}
+.tr-vcmp:hover {
+  background: #fafcfd; /* 盖 zp-table 行悬停条纹 */
+}
+.tr-vcmp-inner {
+  display: grid;
+  grid-template-columns: minmax(300px, 7fr) minmax(240px, 5fr);
+}
+@media (max-width: 900px) {
+  .tr-vcmp-inner {
+    grid-template-columns: 1fr;
+  }
+}
+.tr-vcmp-video {
+  padding: 16px 4px 16px 16px;
+  min-width: 0;
+}
+.tr-vcmp-player {
+  display: block;
+  width: 100%;
+  height: 320px; /* aspect-ratio 是 Chrome 88+，基线 80 用固定高 */
+  background: #0c1a24;
+  border-radius: 10px;
+}
+.tr-vcmp-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.tr-vcmp-text {
+  padding: 16px;
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+.tr-vcmp-lab {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+.tr-vcmp-txt {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow: auto;
 }
 .tr-empty {
   display: none;

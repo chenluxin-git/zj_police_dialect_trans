@@ -4,14 +4,15 @@
  * - 后端 GET /admin/transcriptions（行含录制人 user_name）
  * - 试听复用用户侧 /api/transcriptions/{id}/file（管理员 scope 已放行）
  * - 与录音管理同口径：后端仅提供列表，本页不含删除/修正（转译记录归上传民警本人所有）
+ * - 识别结果两行截断，点击展开/收起；播放为结果格行内播放器（tailect PC 对齐，
+ *   服务端只有转码 WAV → 音频播放）
  */
 import { onMounted, ref } from "vue"
-import { useBlobPlayer } from "@/composables/useBlobDownload"
 import { fetchTranscriptionBlob } from "@/api/trans"
 import { listAdminTranscriptions, type AdminTranscription } from "@/api/admin/transcriptions"
 import { TRANS_ADMIN_FILTER_OPTIONS, TRANS_EXT_OPTIONS, displayText, transLabel, transTagClass } from "@/constants/trans"
+import TransRowPlayer from "@/components/TransRowPlayer.vue"
 
-const audio = useBlobPlayer()
 const items = ref<AdminTranscription[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -20,6 +21,28 @@ const statusFilter = ref("")
 const extFilter = ref("")
 const keyword = ref("")
 const loading = ref(false)
+
+// 识别结果点击展开/收起（tailect .r-text.full 同款）
+const expanded = ref(new Set<number>())
+function toggleExpand(id: number) {
+  if (expanded.value.has(id)) expanded.value.delete(id)
+  else expanded.value.add(id)
+}
+
+// 行内播放：页面级单实例互斥，播放钮变「收起播放」
+const playingId = ref<number | null>(null)
+function togglePlay(row: AdminTranscription) {
+  playingId.value = playingId.value === row.id ? null : row.id
+}
+function loadRowBlob(row: AdminTranscription) {
+  return fetchTranscriptionBlob(row.file_url)
+}
+/** 行离开当前页（翻页/筛选）时收起播放器 */
+function clampPlaying() {
+  if (playingId.value !== null && !items.value.some((r) => r.id === playingId.value)) {
+    playingId.value = null
+  }
+}
 
 function fmtDur(s: number) {
   const m = Math.floor(s / 60)
@@ -52,6 +75,7 @@ async function load() {
     })
     items.value = data.items
     total.value = data.total
+    clampPlaying()
   } finally {
     loading.value = false
   }
@@ -67,11 +91,6 @@ function reset() {
   keyword.value = ""
   page.value = 1
   void load()
-}
-
-async function listen(row: AdminTranscription) {
-  const blob = await fetchTranscriptionBlob(row.file_url)
-  audio.play(blob)
 }
 
 onMounted(() => void load())
@@ -124,17 +143,30 @@ onMounted(() => void load())
               </td>
               <td class="num">{{ fmtDur(row.duration) }}</td>
               <td>
-                <div v-if="row.status === 'done'" class="tr-r">
+                <div
+                  v-if="row.status === 'done'"
+                  class="tr-r"
+                  :class="{ 'is-full': expanded.has(row.id) }"
+                  title="点击展开/收起"
+                  @click="toggleExpand(row.id)"
+                >
                   {{ displayText(row) }}<span v-if="isFixed(row)" class="zp-tag zp-tag--gold">已修正</span>
                 </div>
                 <span v-else-if="row.status === 'failed'" class="tr-fail-hint">
                   识别失败：{{ row.error_message || "可重试" }}
                 </span>
                 <span v-else class="zp-text-3">{{ row.status === "processing" ? "识别中…" : "—" }}</span>
+                <TransRowPlayer
+                  v-if="playingId === row.id"
+                  :load="() => loadRowBlob(row)"
+                  @closed="playingId = null"
+                />
               </td>
               <td class="num">{{ fmtDateTime(row.created_at) }}</td>
               <td class="zp-text-right">
-                <button class="zp-btn zp-btn--text" type="button" @click="listen(row)">播放</button>
+                <button class="zp-btn zp-btn--text" type="button" @click="togglePlay(row)">
+                  {{ playingId === row.id ? "收起播放" : "播放" }}
+                </button>
               </td>
             </tr>
             <tr v-if="!loading && items.length === 0">
@@ -181,6 +213,10 @@ onMounted(() => void load())
   color: var(--ink);
   line-height: 1.6;
   max-width: 440px;
+  cursor: pointer;
+}
+.tr-r.is-full {
+  -webkit-line-clamp: unset;
 }
 .tr-r .zp-tag {
   vertical-align: 1px;

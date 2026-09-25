@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 转译历史记录（dome/trans-history.html 定稿 + MyRecordingsView 骨架）
- * - 层级查看：管理员默认「辖区全部」（本级+下级，复用管理端列表：区域整域筛选 / 关键词
- *   命中录制人 / 行带录制人+区域），可切「仅本人」；民警固定仅本人
+ * - 层级查看：管理员固定「辖区全部」（本级+下级，复用管理端列表：区域整域筛选 /
+ *   关键词命中录制人 / 行带录制人+区域）；民警固定仅本人
  * - 修正/重试/删除仅限本人行（辖区模式下他人行只播不听改，后端 owner 校验兜底）
  * - 状态（含「已修正」= done+corrected）/ 文件类型 / 关键字筛选 + 分页
  * - 行内：done 播放/修正/复制；failed 播放/重试/删除（确认弹窗）；修正弹窗保存后原位替换
@@ -10,7 +10,7 @@
  * - 识别结果两行截断，点击展开/收起；播放为结果格行内播放器（tailect PC 对齐：
  *   自持 audio + 进度/时间 + 单实例互斥，服务端只有转码 WAV → 音频播放）
  */
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { usePollingJob } from "@/composables/usePollingJob"
 import { useUserStore } from "@/stores/user"
@@ -45,10 +45,8 @@ type Row = Omit<TranscriptionItem, "created_at"> & {
 
 const userStore = useUserStore()
 const myId = userStore.user?.id
-const isAdmin = userStore.isAdmin
-// 管理员默认看辖区（本级+下级），可切仅本人；民警固定仅本人（切换钮不渲染）
-const scopeMode = ref<"all" | "mine">(isAdmin ? "all" : "mine")
-const jurisdiction = computed(() => scopeMode.value === "all")
+// 管理员固定看辖区（本级+下级），民警固定仅本人（无切换）
+const jurisdiction = userStore.isAdmin
 
 const items = ref<Row[]>([])
 const total = ref(0)
@@ -109,7 +107,7 @@ async function fetchPage(): Promise<{ rows: Row[]; total: number }> {
     page: page.value,
     page_size: pageSize,
   }
-  if (!jurisdiction.value) {
+  if (!jurisdiction) {
     const data = await listTranscriptions(common)
     return { rows: data.items, total: data.total }
   }
@@ -136,11 +134,6 @@ async function load() {
 /** 本人行才可修正/重试/删除（仅本人模式行不带 user_id，视为本人；后端 owner 校验兜底） */
 function isOwn(row: Row) {
   return row.user_id === undefined || row.user_id === myId
-}
-
-function switchScope() {
-  page.value = 1
-  void load()
 }
 
 function search() {
@@ -238,10 +231,6 @@ onMounted(() => void load())
 
   <!-- 筛选栏 -->
   <div class="zp-filter">
-    <el-radio-group v-if="isAdmin" v-model="scopeMode" size="default" @change="switchScope">
-      <el-radio-button value="all">辖区全部</el-radio-button>
-      <el-radio-button value="mine">仅本人</el-radio-button>
-    </el-radio-group>
     <RegionPicker
       v-if="jurisdiction"
       v-model:value="filterRegionCode"

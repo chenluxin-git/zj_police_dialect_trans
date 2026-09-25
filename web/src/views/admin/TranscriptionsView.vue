@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
- * 转译记录管理（仿 admin/RecordingsView.vue）：scope 辖区列表，仅查看 + 播放
- * - 后端 GET /admin/transcriptions（行含录制人 user_name）
+ * 转译记录管理（仿 admin/RecordingsView.vue）：层级辖区列表（本级+下级全部），仅查看 + 播放
+ * - 后端 GET /admin/transcriptions（行含录制人 user_name / 区域 region_name）
  * - 试听复用用户侧 /api/transcriptions/{id}/file（管理员 scope 已放行）
  * - 与录音管理同口径：后端仅提供列表，本页不含删除/修正（转译记录归上传民警本人所有）
+ * - 区域筛选 RegionPicker（filter 模式：省/超管全省、市管锁本市选区县、县管只读本辖区；
+ *   选市不发区县 = 整域筛选，后端 BFS 展开）；关键词命中 文件名/识别内容/录制人
  * - 识别结果两行截断，点击展开/收起；播放为结果格行内播放器（tailect PC 对齐，
  *   服务端只有转码 WAV → 音频播放）
  */
@@ -12,6 +14,7 @@ import { fetchTranscriptionBlob } from "@/api/trans"
 import { listAdminTranscriptions, type AdminTranscription } from "@/api/admin/transcriptions"
 import { TRANS_ADMIN_FILTER_OPTIONS, TRANS_EXT_OPTIONS, displayText, transLabel, transTagClass } from "@/constants/trans"
 import TransRowPlayer from "@/components/TransRowPlayer.vue"
+import RegionPicker from "@/components/RegionPicker.vue"
 
 const items = ref<AdminTranscription[]>([])
 const total = ref(0)
@@ -21,6 +24,9 @@ const statusFilter = ref("")
 const extFilter = ref("")
 const keyword = ref("")
 const loading = ref(false)
+
+// 区域筛选：由 RegionPicker 统一维护（区县码优先，否则地市码整域；县管只读本辖区）
+const filterRegionCode = ref("")
 
 // 识别结果点击展开/收起（tailect .r-text.full 同款）
 const expanded = ref(new Set<number>())
@@ -66,6 +72,7 @@ async function load() {
   loading.value = true
   try {
     const data = await listAdminTranscriptions({
+      region: filterRegionCode.value || undefined,
       status: statusFilter.value === "done_fixed" ? "done" : statusFilter.value || undefined,
       corrected: statusFilter.value === "done_fixed" ? true : undefined,
       file_ext: extFilter.value || undefined,
@@ -89,6 +96,7 @@ function reset() {
   statusFilter.value = ""
   extFilter.value = ""
   keyword.value = ""
+  filterRegionCode.value = ""
   page.value = 1
   void load()
 }
@@ -100,18 +108,25 @@ onMounted(() => void load())
   <div class="zp-content" style="padding: 0">
     <div class="zp-page-head">
       <h1>转译记录</h1>
-      <span class="sub">辖区全部语音转译记录 · 支持状态筛选与试听</span>
+      <span class="sub">本级及下级辖区全部语音转译记录 · 支持区域/状态筛选与试听</span>
     </div>
 
     <!-- 筛选栏 -->
     <div class="zp-filter">
+      <RegionPicker
+        v-model:value="filterRegionCode"
+        mode="filter"
+        city-placeholder="全部地市"
+        district-placeholder="全部区县"
+        style="width: 290px"
+      />
       <select class="zp-select" v-model="statusFilter" aria-label="状态">
         <option v-for="s in TRANS_ADMIN_FILTER_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
       </select>
       <select class="zp-select" v-model="extFilter" aria-label="文件类型">
         <option v-for="t in TRANS_EXT_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
       </select>
-      <input class="zp-input" v-model="keyword" placeholder="录制人无关，搜索文件名或识别内容" aria-label="搜索文件名或识别内容" @keyup.enter="search" />
+      <input class="zp-input" v-model="keyword" placeholder="搜索文件名 / 识别内容 / 录制人" aria-label="搜索文件名、识别内容或录制人" @keyup.enter="search" />
       <button class="zp-btn zp-btn--primary" type="button" @click="search">查询</button>
       <button class="zp-btn zp-btn--ghost" type="button" @click="reset">重置</button>
     </div>
@@ -123,6 +138,7 @@ onMounted(() => void load())
           <thead>
             <tr>
               <th>录制人</th>
+              <th style="width: 90px">区域</th>
               <th style="width: 80px">状态</th>
               <th style="width: 220px">文件</th>
               <th style="width: 64px">时长</th>
@@ -134,6 +150,7 @@ onMounted(() => void load())
           <tbody>
             <tr v-for="row in items" :key="row.id">
               <td><b>{{ row.user_name || "—" }}</b></td>
+              <td>{{ row.region_name || "—" }}</td>
               <td>
                 <span class="zp-tag" :class="transTagClass(row.status)">{{ transLabel(row.status) }}</span>
               </td>
@@ -170,7 +187,7 @@ onMounted(() => void load())
               </td>
             </tr>
             <tr v-if="!loading && items.length === 0">
-              <td colspan="7" style="color: var(--ink-3); padding: 32px; text-align: center">暂无转译记录</td>
+              <td colspan="8" style="color: var(--ink-3); padding: 32px; text-align: center">暂无转译记录</td>
             </tr>
           </tbody>
         </table>

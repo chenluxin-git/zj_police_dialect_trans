@@ -444,9 +444,26 @@ def test_admin_list_scope_and_filters(client, db, auth_header):
                    params={"status": "failed"}).json()["data"]
     assert d["total"] == 1 and d["items"][0]["file_name"] == "仙居.wav"
 
+    # 区域整域筛选：市码 = 本级+全部下级；区县码精确；越界码空页（不放大视野）
+    d = client.get("/api/admin/transcriptions", headers=auth_of(city_admin),
+                   params={"region": "331000"}).json()["data"]
+    assert d["total"] == 2                                        # 台州整域（本级+下区县）
+    assert d["items"][0]["region_name"] == "仙居县"                # 行带区域名
+    assert client.get("/api/admin/transcriptions", headers=auth_of(city_admin),
+                      params={"region": "331004"}).json()["data"]["total"] == 1
+    assert client.get("/api/admin/transcriptions", headers=auth_of(city_admin),
+                      params={"region": "330105"}).json()["data"]["total"] == 0  # 越界码
+    # 超管市码整域：跨市不可见行也筛得出来；不带 region 全量
     sa = make_user(db, phone="33000000001", name="省超管", role="super_admin", region="330000")
+    assert client.get("/api/admin/transcriptions", headers=auth_of(sa),
+                      params={"region": "330100"}).json()["data"]["total"] == 1  # 仅杭州行
     assert client.get("/api/admin/transcriptions",
-                      headers=auth_of(sa)).json()["data"]["total"] == 3   # 超管全量
+                      headers=auth_of(sa)).json()["data"]["total"] == 3         # 超管全量
+
+    # q 命中录制人姓名
+    d = client.get("/api/admin/transcriptions", headers=auth_of(city_admin),
+                   params={"q": "测试民警"}).json()["data"]
+    assert d["total"] == 2                                        # 测试民警的两条台州行
 
     assert client.get("/api/admin/transcriptions",
                       headers=auth_header).status_code == 403             # 非管理 403

@@ -1,7 +1,8 @@
 /**
- * 管理端转译记录 API（后端 /api/admin/transcriptions，scope 辖区列表）
+ * 管理端转译记录 API（后端 /api/admin/transcriptions，层级辖区列表：本级+下级全部）
  * - 仅列表 + 播放（试听复用用户侧 /api/transcriptions/{id}/file，管理员 scope 已放行）
- * - 行含录制人 user_name；corrected 由 text_fixed 派生（后端未算好，前端判空）
+ * - 行含录制人 user_name / 区域 region_name；corrected 由 text_fixed 派生（后端未算好，前端判空）
+ * - region 筛选支持省/市码整域（后端 BFS 展开 ∩ scope）
  */
 import { api } from "../http"
 
@@ -10,6 +11,7 @@ export interface AdminTranscription {
   user_id: number
   user_name: string
   region_code: string
+  region_name: string
   file_name: string
   file_ext: string
   file_size: number

@@ -83,11 +83,15 @@ def _recover_stuck(db) -> None:
 
 def _next_candidate(db) -> Transcription | None:
     """候选 = 「无 processing 在途用户」的最老 pending（全局 created_at 最先者）。
-    泵单线程：处理完一条重新选 → 同一用户的多条天然串行、多用户间轮转（A1→B1→A2→B2）。"""
+    泵单线程：处理完一条重新选 → 同一用户的多条天然串行、多用户间轮转（A1→B1→A2→B2）。
+    file_path 为空的 pending 跳过——上传端点先入库占号再转码，转码窗口内该行还没文件，
+    抓走会给真实上游发空路径必失败，误标 failed。"""
     busy = set(db.scalars(select(Transcription.user_id)
                           .where(Transcription.status == "processing")).all())
-    rows = db.scalars(select(Transcription).where(Transcription.status == "pending")
-                      .order_by(Transcription.created_at.asc(), Transcription.id.asc())).all()
+    rows = db.scalars(select(Transcription).where(
+        Transcription.status == "pending",
+        Transcription.file_path != "",
+    ).order_by(Transcription.created_at.asc(), Transcription.id.asc())).all()
     for row in rows:
         if row.user_id not in busy:
             return row

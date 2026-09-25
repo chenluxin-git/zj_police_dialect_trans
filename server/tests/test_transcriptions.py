@@ -160,6 +160,19 @@ def test_pump_mock_done(db, pump_db):
     assert row.text_fixed == ""
 
 
+def test_pump_skips_pending_row_before_upload_finishes(db, pump_db):
+    """上传先入库 pending+空 file_path 再转码：泵在转码窗口内扫到也不得抓走
+    （否则真实上游收到空路径必失败，误标 failed 需用户手动重试）"""
+    empty = make_trans(db, name="大文件.mp4", file_path="")            # 转码中（file_path 未回填）
+    ready = make_trans(db, name="小文件.wav", file_path="t.wav",
+                       created=datetime(2026, 9, 24, 9, 0, 0))         # 更早的已就绪行
+    trans_svc.pump_pending()
+    db.refresh(empty)
+    db.refresh(ready)
+    assert empty.status == "pending"        # 空路径跳过，等上传端点补 file_path 后下轮接管
+    assert ready.status == "done"           # 就绪行正常处理（跳过不阻塞队列）
+
+
 def test_pump_asr_exception_failed(db, pump_db, monkeypatch):
     monkeypatch.setattr(settings, "trans_asr_mock", False)
     monkeypatch.setattr(settings, "asr_upstream_base", "http://fake-upstream")

@@ -1,17 +1,22 @@
 <script setup lang="ts">
 /**
  * 转译历史记录（dome/trans-history.html 定稿 + MyRecordingsView 骨架）
- * - 只看本人：状态（含「已修正」= done+corrected）/ 文件类型 / 关键字筛选 + 分页
+ * - 层级查看：管理员默认「辖区全部」（本级+下级，复用管理端列表：区域整域筛选 / 关键词
+ *   命中录制人 / 行带录制人+区域），可切「仅本人」；民警固定仅本人
+ * - 修正/重试/删除仅限本人行（辖区模式下他人行只播不听改，后端 owner 校验兜底）
+ * - 状态（含「已修正」= done+corrected）/ 文件类型 / 关键字筛选 + 分页
  * - 行内：done 播放/修正/复制；failed 播放/重试/删除（确认弹窗）；修正弹窗保存后原位替换
  * - 当页含 pending/processing 时 3s 轮询静默刷新（识别完成即见结果）
  * - 识别结果两行截断，点击展开/收起；播放为结果格行内播放器（tailect PC 对齐：
  *   自持 audio + 进度/时间 + 单实例互斥，服务端只有转码 WAV → 音频播放）
  */
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { usePollingJob } from "@/composables/usePollingJob"
+import { useUserStore } from "@/stores/user"
 import TransFixDialog from "@/components/TransFixDialog.vue"
 import TransRowPlayer from "@/components/TransRowPlayer.vue"
+import RegionPicker from "@/components/RegionPicker.vue"
 import {
   deleteTranscription,
   fetchTranscriptionBlob,
@@ -19,6 +24,7 @@ import {
   retryTranscription,
   type TranscriptionItem,
 } from "@/api/trans"
+import { listAdminTranscriptions } from "@/api/admin/transcriptions"
 import {
   TRANS_EXT_OPTIONS,
   TRANS_FILTER_OPTIONS,
@@ -28,7 +34,23 @@ import {
   transTagClass,
 } from "@/constants/trans"
 
-const items = ref<TranscriptionItem[]>([])
+/** 行结构：仅本人模式行无归属字段；辖区模式带 录制人/区域（user_id 判本人行），
+ *  管理端行 created_at 可空，较 TranscriptionItem 放宽 */
+type Row = Omit<TranscriptionItem, "created_at"> & {
+  created_at: string | null
+  user_id?: number
+  user_name?: string
+  region_name?: string
+}
+
+const userStore = useUserStore()
+const myId = userStore.user?.id
+const isAdmin = userStore.isAdmin
+// 管理员默认看辖区（本级+下级），可切仅本人；民警固定仅本人（切换钮不渲染）
+const scopeMode = ref<"all" | "mine">(isAdmin ? "all" : "mine")
+const jurisdiction = computed(() => scopeMode.value === "all")
+
+const items = ref<Row[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 20
@@ -36,6 +58,9 @@ const statusFilter = ref("")
 const extFilter = ref("")
 const keyword = ref("")
 const loading = ref(false)
+
+// 区域筛选（仅辖区模式）：由 RegionPicker 统一维护（区县码优先，否则地市码整域）
+const filterRegionCode = ref("")
 
 // 识别结果点击展开/收起（tailect .r-text.full 同款）
 const expanded = ref(new Set<number>())
@@ -46,10 +71,10 @@ function toggleExpand(id: number) {
 
 // 行内播放：页面级单实例互斥，播放钮变「收起播放」
 const playingId = ref<number | null>(null)
-function togglePlay(row: TranscriptionItem) {
+function togglePlay(row: Row) {
   playingId.value = playingId.value === row.id ? null : row.id
 }
-function loadRowBlob(row: TranscriptionItem) {
+function loadRowBlob(row: Row) {
   return fetchTranscriptionBlob(row.file_url)
 }
 /** 行离开当前页（翻页/筛选/删除/轮询替换）时收起播放器；同 id 原位替换不打断播放 */
@@ -67,30 +92,55 @@ function fmtDur(s: number) {
 function fmtSize(n: number) {
   return n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
 }
-function fmtDateTime(iso: string) {
+function fmtDateTime(iso: string | null) {
+  if (!iso) return "—"
   const d = new Date(iso)
   const p = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+/** 两种口径共用一套筛选参数；辖区模式走管理端列表（scope 本级+下级、region 整域、q 含录制人） */
+async function fetchPage(): Promise<{ rows: Row[]; total: number }> {
+  const common = {
+    status: statusFilter.value === "done_fixed" ? "done" : statusFilter.value || undefined,
+    corrected: statusFilter.value === "done_fixed" ? true : undefined,
+    file_ext: extFilter.value || undefined,
+    q: keyword.value || undefined,
+    page: page.value,
+    page_size: pageSize,
+  }
+  if (!jurisdiction.value) {
+    const data = await listTranscriptions(common)
+    return { rows: data.items, total: data.total }
+  }
+  const data = await listAdminTranscriptions({ ...common, region: filterRegionCode.value || undefined })
+  return {
+    rows: data.items.map((r) => ({ ...r, corrected: (r.text_fixed || "") !== "" })),
+    total: data.total,
+  }
+}
+
 async function load() {
   loading.value = true
   try {
-    const data = await listTranscriptions({
-      status: statusFilter.value === "done_fixed" ? "done" : statusFilter.value || undefined,
-      corrected: statusFilter.value === "done_fixed" ? true : undefined,
-      file_ext: extFilter.value || undefined,
-      q: keyword.value || undefined,
-      page: page.value,
-      page_size: pageSize,
-    })
-    items.value = data.items
-    total.value = data.total
+    const { rows, total: t } = await fetchPage()
+    items.value = rows
+    total.value = t
     clampPlaying()
     syncPolling()
   } finally {
     loading.value = false
   }
+}
+
+/** 本人行才可修正/重试/删除（仅本人模式行不带 user_id，视为本人；后端 owner 校验兜底） */
+function isOwn(row: Row) {
+  return row.user_id === undefined || row.user_id === myId
+}
+
+function switchScope() {
+  page.value = 1
+  void load()
 }
 
 function search() {
@@ -101,6 +151,7 @@ function reset() {
   statusFilter.value = ""
   extFilter.value = ""
   keyword.value = ""
+  filterRegionCode.value = ""
   page.value = 1
   void load()
 }
@@ -116,22 +167,15 @@ function syncPolling() {
     return
   }
   poll.start(async () => {
-    const data = await listTranscriptions({
-      status: statusFilter.value === "done_fixed" ? "done" : statusFilter.value || undefined,
-      corrected: statusFilter.value === "done_fixed" ? true : undefined,
-      file_ext: extFilter.value || undefined,
-      q: keyword.value || undefined,
-      page: page.value,
-      page_size: pageSize,
-    })
-    items.value = data.items
-    total.value = data.total
+    const { rows, total: t } = await fetchPage()
+    items.value = rows
+    total.value = t
     clampPlaying()
     return !pageActive()
   })
 }
 
-async function copyResult(row: TranscriptionItem) {
+async function copyResult(row: Row) {
   const text = displayText(row)
   if (!text) {
     ElMessage.warning("识别结果为空")
@@ -145,14 +189,14 @@ async function copyResult(row: TranscriptionItem) {
   }
 }
 
-async function retry(row: TranscriptionItem) {
+async function retry(row: Row) {
   const item = await retryTranscription(row.id)
   const idx = items.value.findIndex((r) => r.id === row.id)
   if (idx >= 0) items.value.splice(idx, 1, item)
   syncPolling()
 }
 
-async function remove(row: TranscriptionItem) {
+async function remove(row: Row) {
   await ElMessageBox.confirm(
     `确定删除这条转译记录吗？音频文件与识别结果将同时清除，无法恢复。\n${row.file_name}`,
     "删除转译记录",
@@ -164,8 +208,8 @@ async function remove(row: TranscriptionItem) {
 }
 
 const fixVisible = ref(false)
-const fixTarget = ref<TranscriptionItem | null>(null)
-function openFix(row: TranscriptionItem) {
+const fixTarget = ref<Row | null>(null)
+function openFix(row: Row) {
   fixTarget.value = row
   fixVisible.value = true
 }
@@ -181,18 +225,31 @@ onMounted(() => void load())
 <template>
   <div class="zp-page-head">
     <h1>转译历史记录</h1>
-    <span class="sub">共 {{ total }} 条 · 只看本人转写记录</span>
+    <span class="sub">共 {{ total }} 条 · {{ jurisdiction ? "辖区全部（本级+下级）" : "只看本人转写记录" }}</span>
     <div class="zp-head-actions">
       <router-link class="zp-btn zp-btn--ghost zp-btn--sm" to="/trans/work">← 返回工作台</router-link>
     </div>
   </div>
 
   <div class="zp-alert zp-alert--info zp-mb-16">
-    <span>按账号隔离，只看本人转写记录；支持播放原始音频、修正与复制；失败的记录可重试或删除。</span>
+    <span v-if="jurisdiction">层级查看：本级及下级辖区全部转写记录，可按区域/状态筛选与播放试听；修正/重试/删除仅限本人记录。</span>
+    <span v-else>按账号隔离，只看本人转写记录；支持播放原始音频、修正与复制；失败的记录可重试或删除。</span>
   </div>
 
   <!-- 筛选栏 -->
   <div class="zp-filter">
+    <el-radio-group v-if="isAdmin" v-model="scopeMode" size="default" @change="switchScope">
+      <el-radio-button value="all">辖区全部</el-radio-button>
+      <el-radio-button value="mine">仅本人</el-radio-button>
+    </el-radio-group>
+    <RegionPicker
+      v-if="jurisdiction"
+      v-model:value="filterRegionCode"
+      mode="filter"
+      city-placeholder="全部地市"
+      district-placeholder="全部区县"
+      style="width: 290px"
+    />
     <select class="zp-select" v-model="statusFilter" aria-label="状态">
       <option v-for="s in TRANS_FILTER_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
     </select>
@@ -202,8 +259,8 @@ onMounted(() => void load())
     <input
       class="zp-input"
       v-model="keyword"
-      placeholder="搜索文件名或转写内容"
-      aria-label="搜索文件名或转写内容"
+      :placeholder="jurisdiction ? '搜索文件名 / 转写内容 / 录制人' : '搜索文件名或转写内容'"
+      aria-label="搜索文件名、转写内容或录制人"
       @keyup.enter="search"
     />
     <button class="zp-btn zp-btn--primary" type="button" @click="search">查询</button>
@@ -216,6 +273,10 @@ onMounted(() => void load())
       <table class="zp-table">
         <thead>
           <tr>
+            <template v-if="jurisdiction">
+              <th style="width: 100px">录制人</th>
+              <th style="width: 90px">区域</th>
+            </template>
             <th style="width: 80px">状态</th>
             <th style="width: 240px">文件</th>
             <th style="width: 64px">时长</th>
@@ -226,6 +287,10 @@ onMounted(() => void load())
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
+            <template v-if="jurisdiction">
+              <td><b>{{ row.user_name || "—" }}</b></td>
+              <td>{{ row.region_name || "—" }}</td>
+            </template>
             <td>
               <span class="zp-tag" :class="transTagClass(row.status)">{{ transLabel(row.status) }}</span>
             </td>
@@ -261,17 +326,17 @@ onMounted(() => void load())
                 {{ playingId === row.id ? "收起播放" : "播放" }}
               </button>
               <template v-if="row.status === 'done'">
-                <button class="zp-btn zp-btn--text" type="button" @click="openFix(row)">修正</button>
+                <button v-if="isOwn(row)" class="zp-btn zp-btn--text" type="button" @click="openFix(row)">修正</button>
                 <button class="zp-btn zp-btn--text" type="button" @click="copyResult(row)">复制</button>
               </template>
-              <template v-else-if="row.status === 'failed'">
+              <template v-else-if="row.status === 'failed' && isOwn(row)">
                 <button class="zp-btn zp-btn--text" type="button" @click="retry(row)">重试</button>
                 <button class="zp-btn zp-btn--text is-danger" type="button" @click="remove(row)">删除</button>
               </template>
             </td>
           </tr>
           <tr v-if="!loading && items.length === 0">
-            <td colspan="6" class="zp-center" style="color: var(--ink-3); padding: 32px">暂无转写记录</td>
+            <td :colspan="jurisdiction ? 8 : 6" class="zp-center" style="color: var(--ink-3); padding: 32px">暂无转写记录</td>
           </tr>
         </tbody>
       </table>

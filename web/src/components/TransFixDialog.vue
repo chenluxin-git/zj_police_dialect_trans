@@ -12,7 +12,8 @@ import { displayText } from "@/constants/trans"
 
 const props = defineProps<{
   modelValue: boolean
-  item: TranscriptionItem | null
+  /** 只用 id + 文件名/时长 + 原文/修正文本（displayText），结构化放宽以兼容管理端行（created_at 可空） */
+  item: { id: number; file_name: string; duration: number; text_raw: string; text_fixed: string } | null
 }>()
 
 const emit = defineEmits<{

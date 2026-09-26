@@ -3,6 +3,7 @@ bt_file/
 record_demo_*.zip
 record_frontend_*.zip
 dist-record/
+dist-stack/
 dist-offline/
 
 # ---- compose 外挂的运行日志（docker-compose.yml 挂到 ./logs 的宿主侧落点）----
